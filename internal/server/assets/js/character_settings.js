@@ -132,6 +132,27 @@ function updateButtonForDisabledRun(runElement) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const tabLinks = document.querySelectorAll('.tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            const tabId = link.getAttribute('data-tab');
+
+            tabLinks.forEach(item => item.classList.remove('active'));
+            tabContents.forEach(item => item.classList.remove('active'));
+            
+            link.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    if (tabLinks.length > 0) {
+        tabLinks[0].classList.add('active');
+        const firstTabId = tabLinks[0].getAttribute('data-tab');
+        document.getElementById(firstTabId).classList.add('active');
+    }
     const schedulerEnabled = document.querySelector('input[name="schedulerEnabled"]');
     const schedulerSettings = document.getElementById('scheduler-settings');
     const characterClassSelect = document.querySelector('select[name="characterClass"]');
@@ -152,6 +173,24 @@ document.addEventListener('DOMContentLoaded', function () {
     if (bossStaticThresholdInput) {
         bossStaticThresholdInput.addEventListener('input', handleBossStaticThresholdChange);
     }
+    
+    // Packet collapse toggle (text version)
+document.querySelectorAll('.packet-article').forEach(article => {
+    const btn = article.querySelector('.collapse-toggle');
+    const text = article.querySelector('.collapse-text');
+
+    btn.addEventListener('click', () => {
+        const collapsed = article.classList.toggle('collapsed');
+
+        if (collapsed) {
+            btn.setAttribute('aria-expanded', 'false');
+            text.textContent = 'Show';
+        } else {
+            btn.setAttribute('aria-expanded', 'true');
+            text.textContent = 'Hide';
+        }
+    });
+});
 
     function toggleSchedulerVisibility() {
         schedulerSettings.style.display = schedulerEnabled.checked ? 'grid' : 'none';

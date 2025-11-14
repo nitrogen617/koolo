@@ -679,3 +679,85 @@
     background-color: rgba(255, 255, 255, 0.02);
     border-radius: 8px;
 }
+/* tab */
+nav.tabs ul {
+    display: flex;
+    width: 100%;
+    padding: 0;
+    margin: 0 0 1rem 0;
+    list-style: none;
+    border-bottom: 1px solid #444;
+}
+
+nav.tabs li {
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
+    background: #444;         
+    color: #ddd;
+    border-right: 1px solid #555;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+
+nav.tabs li:last-child {
+    border-right: none;
+}
+
+nav.tabs li.active {
+    background: #0077ff;   
+    color: white;
+    font-weight: 600;
+}
+
+nav.tabs li:hover {
+    background: #555;      
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.packet-article .collapse-toggle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    border: none;
+    background: rgba(0,0,0,0.05);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #333;
+    transition: background 0.15s;
+}
+
+.packet-article .collapse-toggle:hover {
+    background: rgba(0,0,0,0.1);
+}
+
+.collapsible-body {
+    display: block;
+}
+
+.packet-article.collapsed .collapsible-body {
+    display: none;
+}
+
+.packet-article {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.packet-article > header {
+    color: #ffa600 !important;
+    font-weight: 700 !important;
+}

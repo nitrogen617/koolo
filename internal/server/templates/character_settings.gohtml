@@ -26,7 +26,7 @@
         </div>
     </div>
     {{ end }}
-            <form method="post" autocomplete="off" class="compact-form">
+        <form method="post" autocomplete="off" class="compact-form">
         <nav class="tabs">
                 <ul>
                     <li class="tab-link active" data-tab="battlenet-tab">Battle.net</li>
@@ -577,6 +577,46 @@ type="number" name="manaPotionAt" min="0" max="99" placeholder="{{ .Config.Healt
                     Open tp for manual player
                 </label>
                 <h4>Run Settings</h4><br>
+                {{/* CATEGORY MAPPING FOR RUN FILTERS */}}
+{{ define "run_category" }}
+    {{ if eq . "andariel" }} data-category="boss"
+    {{ else if eq . "baal" }} data-category="boss a85"
+    {{ else if eq . "diablo" }} data-category="boss a85"
+    {{ else if eq . "pindleskin" }} data-category="boss"
+    {{ else if eq . "eldritch" }} data-category="boss"
+    {{ else if eq . "mephisto" }} data-category="boss"
+    {{ else if eq . "duriel" }} data-category="boss"
+
+    {{ else if eq . "ancient_tunnels" }} data-category="a85"
+    {{ else if eq . "mausoleum" }} data-category="a85"
+    {{ else if eq . "pit" }} data-category="a85"
+    {{ else if eq . "stony_tomb" }} data-category="a85"
+    {{ else if eq . "drifter_cavern" }} data-category="a85"
+    {{ else if eq . "spider_cavern" }} data-category=""
+
+    {{ else if eq . "countess" }} data-category="keytz"
+    {{ else if eq . "summoner" }} data-category="keytz"
+    {{ else if eq . "nihlathak" }} data-category="keytz"
+    {{ else if eq . "terror_zone" }} data-category="keytz"
+    {{ else if eq . "arachnid_lair" }} data-category="a85"
+    {{ else if eq . "tristram" }} data-category=""
+    {{ else if eq . "tal_rasha_tombs" }} data-category=""
+    {{ else if eq . "leveling" }} data-category="leveling"
+
+    {{ else if eq . "cows" }} data-category="special"
+    {{ else if eq . "lower_kurast" }} data-category=""
+    {{ else if eq . "lower_kurast_chest" }} data-category="special"
+    {{ else if eq . "travincal" }} data-category="special"
+    {{ else if eq . "quests" }} data-category="leveling"
+    {{ else if eq . "utility" }} data-category="special"
+    {{ else if eq . "threshsocket" }} data-category="boss"
+    {{ else if eq . "endugu" }} data-category="boss"
+    {{ else if eq . "fire_eye" }} data-category="boss"
+    {{ else if eq . "mule" }} data-category="special"
+
+    {{ else }} data-category="" 
+    {{ end }}
+{{ end }}
                 <label>
                     Choose the runs that you want the bot to run.
 You can either drag & drop runs below to enable or disable them, or use the + - buttons.
@@ -594,7 +634,7 @@ Click on any of the runs to expand them and see more details and options.
                         <ul style="padding-top: 52px" class="run-list" id="enabled_runs">
                             {{ range $index, $run := .EnabledRuns }}
                   
-          <li value="{{ $run }}">
+         <li value="{{ $run }}" {{ template "run_category" $run }}>
                                 <details>
                                     <summary role="button" class="outline secondary">
                             
@@ -611,11 +651,20 @@ Click on any of the runs to expand them and see more details and options.
                     </div>
                     <div>
                         <h6>Disabled Runs:</h6>
+                        <!-- RUN CATEGORY MINI TABS -->
+    <div id="run-mini-tabs" class="run-tabs">
+    <button type="button" data-filter="all" class="active">All</button>
+    <button type="button" data-filter="leveling">Leveling</button>
+    <button type="button" data-filter="boss">Boss</button>
+    <button type="button" data-filter="a85">A85</button>
+    <button type="button" data-filter="keytz">Key+TZ</button>
+    <button type="button" data-filter="special">Special</button>
+    </div>
                         <input type="text" id="search-disabled-runs" placeholder="Search runs...">
      
                    <ul class="run-list" id="disabled_runs">
                             {{ range $index, $run := .DisabledRuns }}
-                            <li value="{{ $run }}">
+                            <li value="{{ $run }}" {{ template "run_category" $run }}>
                           
       <details>
                                     <summary role="button" class="outline secondary">

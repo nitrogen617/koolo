@@ -140,9 +140,11 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault(); 
             const tabId = link.getAttribute('data-tab');
 
+
             tabLinks.forEach(item => item.classList.remove('active'));
             tabContents.forEach(item => item.classList.remove('active'));
-            
+
+
             link.classList.add('active');
             document.getElementById(tabId).classList.add('active');
         });
@@ -153,6 +155,32 @@ document.addEventListener('DOMContentLoaded', function () {
         const firstTabId = tabLinks[0].getAttribute('data-tab');
         document.getElementById(firstTabId).classList.add('active');
     }
+        document.querySelectorAll('#run-mini-tabs button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filter = btn.getAttribute('data-filter');
+
+            document.querySelectorAll('#run-mini-tabs button')
+                .forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            document.querySelectorAll('#disabled_runs li').forEach(li => {
+                const cats = (li.getAttribute('data-category') || "").toLowerCase();
+
+                if (filter === "all") {
+                    li.style.display = "";
+                }
+                else if (filter === "favorite") {
+                    if (li.classList.contains("favorite")) li.style.display = "";
+                    else li.style.display = "none";
+                }
+                else {
+                    if (cats.includes(filter)) li.style.display = "";
+                    else li.style.display = "none";
+                }
+            });
+        });
+    });
+
     const schedulerEnabled = document.querySelector('input[name="schedulerEnabled"]');
     const schedulerSettings = document.getElementById('scheduler-settings');
     const characterClassSelect = document.querySelector('select[name="characterClass"]');

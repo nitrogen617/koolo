@@ -18,6 +18,9 @@ type Coordinator struct {
 	// Callback to notify server when individual filters are cleared
 	clearServerFilter func(supervisor string)
 
+	// Callback to clear persistent delivery request
+	clearPersistentRequest func(supervisor string)
+
 	// Callback to report delivery run result back to server
 	onDeliveryResult func(supervisorName, room, result string, itemsDelivered int, duration time.Duration, errorMsg string)
 }
@@ -58,6 +61,11 @@ func (c *Coordinator) SetClearServerFilterCallback(callback func(supervisor stri
 	c.clearServerFilter = callback
 }
 
+// SetClearPersistentRequestCallback registers a callback to clear persistent delivery requests.
+func (c *Coordinator) SetClearPersistentRequestCallback(callback func(supervisor string)) {
+	c.clearPersistentRequest = callback
+}
+
 // SetDeliveryResultCallback registers a callback used to report delivery results to the server.
 func (c *Coordinator) SetDeliveryResultCallback(callback func(supervisorName, room, result string, itemsDelivered int, duration time.Duration, errorMsg string)) {
 	c.onDeliveryResult = callback
@@ -70,8 +78,9 @@ func (c *Coordinator) ConfigureCallbacks(supervisorName string, mgr *Manager) {
 	}
 
 	mgr.SetCallbacks(Callbacks{
-		OnComplete: c.ClearIndividualFilters,
-		OnResult:   c.onDeliveryResult,
+		OnComplete:     c.ClearIndividualFilters,
+		OnResult:       c.onDeliveryResult,
+		OnClearRequest: c.clearPersistentRequest,
 	})
 }
 

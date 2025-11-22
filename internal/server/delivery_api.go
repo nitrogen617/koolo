@@ -234,6 +234,8 @@ func (s *HttpServer) submitDeliveryRequest(supervisor, room, password string) er
 	if ctx.Delivery == nil {
 		ctx.Delivery = delivery.NewManager(ctx.Name, ctx.Logger)
 	}
+	// Always apply latest filters before delivery request
+	ctx.Delivery.UpdateFilters(s.getDeliveryFilters(supervisor))
 	ctx.Delivery.RequestDelivery(room, password)
 	ctx.Logger.Info("Delivery request queued", "supervisor", supervisor, "room", room)
 

@@ -126,7 +126,7 @@ func (d Delivery) Run(_ *RunParameters) error {
 	ctx.Logger.Info("Delivery: finished stash drop sequence", "itemsDelivered", itemsDelivered)
 
 	ctx.Manager.ExitGame()
-	utils.Sleep(800)
+	utils.Sleep(2000)
 	if err := d.ensureCharacterSelection(ctx); err != nil {
 		ctx.Logger.Warn("Delivery: failed to return to character selection", "error", err)
 	}
@@ -146,7 +146,7 @@ func (d Delivery) ensureCharacterSelection(ctx *context.Status) error {
 		if ctx.GameReader.IsInLobby() {
 			ctx.Logger.Debug("Delivery: still in lobby after exit, sending ESC to return to character screen", "attempt", attempt+1)
 			ctx.HID.PressKey(win.VK_ESCAPE)
-			utils.Sleep(1500)
+			utils.Sleep(2000) // Increased from 500ms to 1000ms for character loading
 			ctx.RefreshGameData()
 			continue
 		}

@@ -200,7 +200,11 @@ func (s *HttpServer) getDeliveryFilters(supervisor string) delivery.Filters {
 	if filters, ok := s.deliveryFilters[supervisor]; ok {
 		return filters.Normalize()
 	}
-	return delivery.Filters{DeliverOnlySelected: true}.Normalize()
+	
+	if global, ok := s.deliveryFilters["global"]; ok && global.Enabled {
+		return global.Normalize()
+	}
+	return delivery.Filters{DeliverOnlySelected: false}.Normalize()
 }
 
 func (s *HttpServer) setDeliveryFilters(supervisor string, p delivery.Filters) delivery.Filters {

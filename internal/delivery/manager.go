@@ -61,6 +61,11 @@ func (m *Manager) RequestDelivery(room, passwd string) *Request {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Always re-apply latest filters to ensure correct quotas before delivery
+	if m.filters != nil {
+		m.filters.UpdateFilters(m.filters.filters)
+	}
+
 	if m.pending != nil {
 		m.pending.RoomName = room
 		m.pending.Password = passwd

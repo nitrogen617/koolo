@@ -81,6 +81,7 @@ type DeliveryCancelRequest struct {
 // into the HTTP server, so results and filter state are reflected in the UI.
 func (s *HttpServer) initDeliveryCallbacks() {
 	s.manager.DeliveryService().SetClearServerFilterCallback(s.onDeliveryClearFilters)
+	s.manager.DeliveryService().SetClearPersistentRequestCallback(s.onDeliveryClearPersistentRequest)
 	s.manager.DeliveryService().SetDeliveryResultCallback(s.onDeliveryResult)
 }
 
@@ -90,6 +91,12 @@ func (s *HttpServer) onDeliveryClearFilters(supervisor string) {
 	s.deliveryMux.Lock()
 	delete(s.deliveryFilters, supervisor)
 	s.deliveryMux.Unlock()
+}
+
+// onDeliveryClearPersistentRequest is invoked when a delivery request is cleared
+// to remove it from persistent storage.
+func (s *HttpServer) onDeliveryClearPersistentRequest(supervisor string) {
+	s.manager.DeliveryService().ClearPersistentRequest(supervisor)
 }
 
 // onDeliveryResult is invoked when a delivery run finishes so that the
@@ -200,10 +207,11 @@ func (s *HttpServer) getDeliveryFilters(supervisor string) delivery.Filters {
 	if filters, ok := s.deliveryFilters[supervisor]; ok {
 		return filters.Normalize()
 	}
-	
+
 	if global, ok := s.deliveryFilters["global"]; ok && global.Enabled {
 		return global.Normalize()
 	}
+
 	return delivery.Filters{DeliverOnlySelected: false}.Normalize()
 }
 
@@ -240,8 +248,11 @@ func (s *HttpServer) submitDeliveryRequest(supervisor, room, password string) er
 	}
 	// Always apply latest filters before delivery request
 	ctx.Delivery.UpdateFilters(s.getDeliveryFilters(supervisor))
-	ctx.Delivery.RequestDelivery(room, password)
+	req := ctx.Delivery.RequestDelivery(room, password)
 	ctx.Logger.Info("Delivery request queued", "supervisor", supervisor, "room", room)
+
+	// Store persistent request for 10 minutes
+	s.manager.DeliveryService().StorePersistentRequest(supervisor, req)
 
 	ctx.Delivery.StartWatch()
 	ctx.Delivery.TriggerInterrupt()
@@ -408,9 +419,14 @@ func (s *HttpServer) handleDeliveryBatch(w http.ResponseWriter, r *http.Request)
 		delaySeconds = 0
 	}
 
-	for _, name := range valid {
+	for i, name := range valid {
 		if err := s.submitDeliveryRequest(name, req.RoomName, req.Password); err != nil {
 			failed = append(failed, fmt.Sprintf("%s: %v", name, err))
+		}
+
+		// Apply sequential delay between deliveries (skip for first delivery)
+		if i < len(valid)-1 && delaySeconds > 0 {
+			time.Sleep(time.Duration(delaySeconds) * time.Second)
 		}
 	}
 
@@ -490,12 +506,14 @@ func (s *HttpServer) handleDeliveryCancel(w http.ResponseWriter, r *http.Request
 		if pending := ctx.Delivery.Pending(); pending != nil {
 			room = pending.RoomName
 			ctx.Delivery.ClearRequest(pending)
+			s.manager.DeliveryService().ClearPersistentRequest(req.Supervisor)
 		}
 		if active := ctx.Delivery.Active(); active != nil {
 			if room == "" {
 				room = active.RoomName
 			}
 			ctx.Delivery.ClearRequest(active)
+			s.manager.DeliveryService().ClearPersistentRequest(req.Supervisor)
 		}
 	}
 

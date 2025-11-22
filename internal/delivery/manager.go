@@ -20,8 +20,9 @@ var ErrInterrupt = errors.New("delivery requested")
 
 // Callbacks holds hooks used by runner/server layers.
 type Callbacks struct {
-	OnComplete func(supervisorName string)
-	OnResult   func(supervisorName, room, result string, itemsDelivered int, duration time.Duration, errorMsg string)
+	OnComplete     func(supervisorName string)
+	OnResult       func(supervisorName, room, result string, itemsDelivered int, duration time.Duration, errorMsg string)
+	OnClearRequest func(supervisorName string)
 }
 
 // Manager tracks all delivery runtime state for a single supervisor.
@@ -120,6 +121,9 @@ func (m *Manager) ClearRequest(req *Request) {
 
 	if m.pending == req {
 		m.pending = nil
+		if m.cbs.OnClearRequest != nil {
+			m.cbs.OnClearRequest(m.name)
+		}
 	}
 
 	if m.active == req {
@@ -131,6 +135,9 @@ func (m *Manager) ClearRequest(req *Request) {
 			m.cbs.OnComplete(m.name)
 		} else if m.logger != nil {
 			m.logger.Warn("Delivery complete but OnComplete callback is nil", "supervisor", m.name)
+		}
+		if m.cbs.OnClearRequest != nil {
+			m.cbs.OnClearRequest(m.name)
 		}
 	}
 }

@@ -185,6 +185,7 @@ func (d Delivery) initialSetupInGame(ctx *context.Status) error {
 	ctx.RefreshGameData()
 
 	if !ctx.Data.PlayerUnit.Area.IsTown() {
+		ctx.Logger.Error("Delivery: not in town at initial setup", "area", ctx.Data.PlayerUnit.Area)
 		return fmt.Errorf("delivery: can only run in town")
 	}
 
@@ -201,6 +202,7 @@ func (d Delivery) initialSetupInGame(ctx *context.Status) error {
 	ctx.RefreshGameData()
 
 	if !ctx.Data.OpenMenus.Stash {
+		ctx.Logger.Error("Delivery: stash UI not open after initial setup", "area", ctx.Data.PlayerUnit.Area)
 		return fmt.Errorf("delivery: stash UI not open after initial setup")
 	}
 
@@ -431,6 +433,10 @@ func (d Delivery) dropInventoryDeliverables(ctx *context.Status, reopenTab int, 
 		ctx.HID.ClickWithModifier(game.LeftButton, screenPos.X, screenPos.Y, game.CtrlKey)
 		utils.Sleep(150)
 		dropped++
+		// Count this item towards delivery quotas
+		if ctx.Delivery != nil {
+			ctx.Delivery.RecordDeliveredItem(string(it.Name))
+		}
 		logDeliveryQuotaProgress(ctx, "dropped-from-inventory", it)
 		if quotas != nil {
 			quotas.markDelivered(string(it.Name))
@@ -512,7 +518,7 @@ func newDeliveryQuotaTracker(ctx *context.Status) *deliveryQuotaTracker {
 	return &deliveryQuotaTracker{
 		ctx:             ctx,
 		reserved:        make(map[string]int),
-		hasFiniteLimits: ctx.Context.Delivery != nil && ctx.Context.Delivery.HasDeliveryQuotaLimits(),
+		hasFiniteLimits: ctx.Delivery != nil && ctx.Delivery.HasDeliveryQuotaLimits(),
 	}
 }
 
@@ -520,15 +526,15 @@ func (t *deliveryQuotaTracker) reserve(name string) bool {
 	if t == nil {
 		return true
 	}
-	if t.ctx.Context.Delivery == nil {
+	if t.ctx.Delivery == nil {
 		return true
 	}
-	limit := t.ctx.Context.Delivery.GetDeliveryItemQuantity(name)
+	limit := t.ctx.Delivery.GetDeliveryItemQuantity(name)
 	if limit <= 0 {
 		return true
 	}
 	key := strings.ToLower(name)
-	delivered := t.ctx.Context.Delivery.GetDeliveredItemCount(name)
+	delivered := t.ctx.Delivery.GetDeliveredItemCount(name)
 	if delivered+t.reserved[key] >= limit {
 		return false
 	}
@@ -554,10 +560,10 @@ func (t *deliveryQuotaTracker) fulfilled() bool {
 	if t == nil || !t.hasFiniteLimits {
 		return false
 	}
-	if t.ctx.Context.Delivery == nil {
+	if t.ctx.Delivery == nil {
 		return false
 	}
-	return t.ctx.Context.Delivery.AreDeliveryQuotasSatisfied()
+	return t.ctx.Delivery.AreDeliveryQuotasSatisfied()
 }
 
 func (d Delivery) deliveryRequestSatisfied(quotas *deliveryQuotaTracker) bool {
@@ -565,17 +571,11 @@ func (d Delivery) deliveryRequestSatisfied(quotas *deliveryQuotaTracker) bool {
 }
 
 func logDeliveryQuotaProgress(ctx *context.Status, stage string, it data.Item) {
-	if ctx == nil || ctx.Context == nil {
+	if ctx == nil || ctx.Delivery == nil {
 		return
 	}
-	if ctx.Context.Delivery == nil {
-		return
-	}
-	limit := ctx.Context.Delivery.GetDeliveryItemQuantity(string(it.Name))
-	if limit <= 0 {
-		return
-	}
-	delivered := ctx.Context.Delivery.GetDeliveredItemCount(string(it.Name))
+	limit := ctx.Delivery.GetDeliveryItemQuantity(string(it.Name))
+	delivered := ctx.Delivery.GetDeliveredItemCount(string(it.Name))
 	remaining := limit - delivered
 	if remaining < 0 {
 		remaining = 0

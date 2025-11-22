@@ -192,6 +192,7 @@ func (s *SinglePlayerSupervisor) Start() error {
 
 			// Immediately run the pending delivery before entering the normal menu flow
 			s.bot.ctx.Logger.Info("Pending delivery detected, launching delivery before menu flow")
+			s.bot.ctx.SwitchPriority(ct.PriorityNormal)
 			action.SwitchToLegacyMode()
 			action.SwitchToLegacyMode()
 			deliveryRun := run.NewDelivery()

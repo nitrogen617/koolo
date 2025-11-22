@@ -62,7 +62,7 @@ func (d Delivery) Run(_ *RunParameters) error {
 		if ctx.Manager.InGame() {
 			ctx.Logger.Info("Delivery failed while in game, exiting game")
 			ctx.Manager.ExitGame()
-			utils.Sleep(2000)
+			utils.Sleep(500)
 		}
 
 		if err := d.ensureCharacterSelection(ctx); err != nil {
@@ -81,7 +81,7 @@ func (d Delivery) Run(_ *RunParameters) error {
 
 	if ctx.Manager.InGame() {
 		ctx.Manager.ExitGame()
-		utils.Sleep(1200)
+		utils.Sleep(500)
 	}
 
 	if err := d.prepareForLobbyJoin(ctx); err != nil {
@@ -99,7 +99,7 @@ func (d Delivery) Run(_ *RunParameters) error {
 	}
 
 	ctx.WaitForGameToLoad()
-	ctx.RefreshGameData()
+	ctx.RefreshGameData() 
 	// Ensure legacy graphics are toggled before interacting with stash/inventory.
 	action.SwitchToLegacyMode()
 	action.SwitchToLegacyMode()
@@ -170,7 +170,7 @@ func (d Delivery) ensureInventoryOpen(ctx *context.Status) error {
 		}
 
 		ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-		utils.Sleep(MuleActionDelay / 2)
+		utils.Sleep(250)
 	}
 
 	ctx.RefreshGameData()
@@ -197,7 +197,7 @@ func (d Delivery) initialSetupInGame(ctx *context.Status) error {
 
 	if !ctx.Data.OpenMenus.Inventory {
 		ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-		utils.Sleep(MuleActionDelay)
+		utils.Sleep(500)
 	}
 	ctx.RefreshGameData()
 
@@ -222,7 +222,7 @@ func (d Delivery) dropStashItems(ctx *context.Status) (int, error) {
 	}
 
 	const (
-		maxPasses      = 2
+		maxPasses      = 1
 		maxItemRetries = 2
 		maxTotalTime   = 3 * time.Minute
 	)
@@ -369,7 +369,7 @@ func (d Delivery) moveStashItemToInventory(ctx *context.Status, it data.Item) (d
 	ctx.Logger.Debug("Delivery: attempting to move item via ctrl+click", "item", updated.Name, "tab", updated.Location.Page+1, "locationType", updated.Location.LocationType, "gridX", updated.Position.X, "gridY", updated.Position.Y, "screenX", screenPos.X, "screenY", screenPos.Y)
 	prevInventoryCount := len(ctx.Data.Inventory.ByLocation(item.LocationInventory))
 	ctx.HID.ClickWithModifier(game.LeftButton, screenPos.X, screenPos.Y, game.CtrlKey)
-	utils.Sleep(MuleActionDelay)
+	utils.Sleep(500)
 	ctx.RefreshInventory()
 
 	for _, invItem := range ctx.Data.Inventory.ByLocation(item.LocationInventory) {
@@ -407,7 +407,7 @@ func (d Delivery) dropInventoryDeliverables(ctx *context.Status, reopenTab int, 
 			ctx.Logger.Error("Delivery: failed to close stash before dropping items", "error", err)
 			return 0, err
 		}
-		utils.Sleep(MuleActionDelay / 2)
+		utils.Sleep(250)
 		ctx.RefreshInventory()
 	}
 
@@ -450,7 +450,7 @@ func (d Delivery) dropInventoryDeliverables(ctx *context.Status, reopenTab int, 
 	ctx.RefreshGameData()
 	if ctx.Data.OpenMenus.Inventory {
 		ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-		utils.Sleep(MuleActionDelay / 2)
+		utils.Sleep(250)
 		ctx.RefreshGameData()
 		ctx.RefreshInventory()
 	}
@@ -735,7 +735,7 @@ func (d Delivery) ensureStashOpen(ctx *context.Status) error {
 			ctx.Logger.Error("Delivery: failed to open stash", "attempt", attempt, "error", err)
 		}
 
-		utils.Sleep(MuleActionDelay)
+		utils.Sleep(500)
 	}
 
 	ctx.RefreshGameData()
@@ -763,7 +763,7 @@ func (d Delivery) repositionNearStash(ctx *context.Status) error {
 		return fmt.Errorf("delivery: failed to reposition near stash: %w", err)
 	}
 
-	utils.Sleep(MuleActionDelay / 2)
+	utils.Sleep(250)
 	return nil
 }
 
@@ -774,12 +774,12 @@ func (d Delivery) ensureStashTabReady(ctx *context.Status, tab int) error {
 		if err := d.ensureStashOpen(ctx); err != nil {
 			return err
 		}
-		utils.Sleep(MuleActionDelay / 2)
+		utils.Sleep(250)
 		ctx.RefreshGameData()
 	}
 
 	action.SwitchStashTab(tab)
-	utils.Sleep(MuleActionDelay)
+	utils.Sleep(500)
 	ctx.RefreshGameData()
 	ctx.Logger.Debug("Delivery: switched stash tab", "tab", tab, "inventoryItems", len(ctx.Data.Inventory.ByLocation(item.LocationInventory)))
 

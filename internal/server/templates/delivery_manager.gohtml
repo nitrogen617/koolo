@@ -516,7 +516,7 @@
 
     <section class="delivery-stack">
         <article class="delivery-card">
-            <h2>Batch Delivery</h2>
+            <h2>Delivery Room Options</h2>
             <p>Configure target room and sequential delays before launching a batch.</p>
             <div class="delivery-form-grid">
                 <label>
@@ -536,14 +536,15 @@
 
         <article class="delivery-card">
             <h2>Supervisors</h2>
-            <p>Set filters per character to selectively deliver specific items.</p>
+            <p>You can request delivery only when the supervisor is online.
+If you use the Express button, delivery will be performed first even when offline, and then the configured Run will start.</p>
             <div class="supervisor-toolbar">
                 <button id="dm-selection-toggle" type="button" class="btn btn-outline btn-small">
                     <i class="bi bi-check2-all"></i>
                     <span id="dm-selection-toggle-label">Select All</span>
                 </button>
                 <button id="dm-deliver-selected" type="button" class="btn btn-primary btn-small" disabled>
-                    <i class="bi bi-truck"></i> Selected Delivery (0/0)
+                    <i class="bi bi-truck"></i> Delivery (0/0)
                 </button>
             </div>
             <div id="dm-supervisor-list" class="supervisor-tags"></div>
@@ -580,8 +581,8 @@
                     </div>
                     <div class="filter-section">
                         <label>
-                            Custom items (one per line)
-                            <textarea id="dm-custom-items" placeholder="GriffonsEye&#10;ArachnidMesh"></textarea>
+                            Custom items (one per line, only Base name)
+                            <textarea id="dm-custom-items" placeholder="Crystalsword"></textarea>
                         </label>
                         <small>Use the exact item code/name so it can be matched during delivery.</small>
                     </div>
@@ -660,8 +661,8 @@
                         </div>
                         <div class="filter-section">
                             <label>
-                                Custom items (one per line)
-                                <textarea id="dm-individual-custom-items" placeholder="GriffonsEye&#10;ArachnidMesh"></textarea>
+                                Custom items (one per line, only Base name)
+                                <textarea id="dm-individual-custom-items" placeholder="Crystalsword"></textarea>
                             </label>
                             <small>Use the exact item code/name so it can be matched during delivery.</small>
                         </div>

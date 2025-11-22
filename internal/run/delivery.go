@@ -99,7 +99,7 @@ func (d Delivery) Run(_ *RunParameters) error {
 	}
 
 	ctx.WaitForGameToLoad()
-	ctx.RefreshGameData() 
+	ctx.RefreshGameData()
 	// Ensure legacy graphics are toggled before interacting with stash/inventory.
 	action.SwitchToLegacyMode()
 	action.SwitchToLegacyMode()
@@ -108,6 +108,7 @@ func (d Delivery) Run(_ *RunParameters) error {
 		ctx.Logger.Error("Delivery: failed to fetch map data", "error", err)
 		return err
 	}
+	ctx.DisableItemPickup()
 	ctx.RefreshGameData()
 
 	if err := d.initialSetupInGame(ctx); err != nil {
@@ -115,7 +116,6 @@ func (d Delivery) Run(_ *RunParameters) error {
 		return err
 	}
 
-	ctx.DisableItemPickup()
 	itemsDelivered, dropErr := d.dropStashItems(ctx)
 	ctx.EnableItemPickup()
 	if dropErr != nil {

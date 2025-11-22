@@ -16,6 +16,12 @@ func CloseAllMenus() error {
 	for ctx.Data.OpenMenus.IsMenuOpen() {
 		// Pause the execution if the priority is not the same as the execution priority
 		ctx.PauseIfNotPriority()
+		
+		// Before sending ESC, allow a pending delivery request to interrupt
+        // this cleanup so the bot can exit the game immediately for delivery.
+		if err := interruptDeliveryIfRequested(); err != nil {
+			return err
+		}
 
 		ctx.RefreshGameData()
 		if attempts > 10 {

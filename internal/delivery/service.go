@@ -10,13 +10,16 @@ type Service struct {
 	coord *Coordinator
 	// queued start-delivery requests per supervisor
 	queuedStart map[string]StartRequest
+	// persistent delivery requests per supervisor (10min timeout)
+	persistentRequests map[string]*Request
 }
 
 // Service constructor
 func NewService(logger *slog.Logger) *Service {
 	return &Service{
-		coord:       NewCoordinator(logger),
-		queuedStart: make(map[string]StartRequest),
+		coord:              NewCoordinator(logger),
+		queuedStart:        make(map[string]StartRequest),
+		persistentRequests: make(map[string]*Request),
 	}
 }
 
@@ -40,6 +43,16 @@ func (s *Service) AttachManager(supervisorName string, mgr *Manager) {
 	if req, ok := s.consumeQueuedStart(supervisorName); ok {
 		mgr.RequestDelivery(req.Room, req.Password)
 	}
+
+	// Restore persistent delivery request if within 10 minutes
+	if persistentReq, ok := s.persistentRequests[supervisorName]; ok {
+		if time.Since(persistentReq.CreatedAt) < 10*time.Minute {
+			mgr.RequestDelivery(persistentReq.RoomName, persistentReq.Password)
+		} else {
+			// Expired, remove it
+			delete(s.persistentRequests, supervisorName)
+		}
+	}
 }
 
 // Set filters for a supervisor
@@ -47,7 +60,15 @@ func (s *Service) SetFilters(supervisor string, filters Filters, mgr *Manager) {
 	s.coord.SetFilters(supervisor, filters, mgr)
 }
 
-// Get filters for a supervisor
+// Store persistent delivery request for a supervisor
+func (s *Service) StorePersistentRequest(supervisorName string, req *Request) {
+	s.persistentRequests[supervisorName] = req
+}
+
+// Clear persistent delivery request for a supervisor
+func (s *Service) ClearPersistentRequest(supervisorName string) {
+	delete(s.persistentRequests, supervisorName)
+}
 func (s *Service) GetFilters(supervisor string) (Filters, bool) {
 	return s.coord.GetFilters(supervisor)
 }
@@ -55,6 +76,11 @@ func (s *Service) GetFilters(supervisor string) (Filters, bool) {
 // Register server filter clear callback
 func (s *Service) SetClearServerFilterCallback(callback func(supervisor string)) {
 	s.coord.SetClearServerFilterCallback(callback)
+}
+
+// Register persistent request clear callback
+func (s *Service) SetClearPersistentRequestCallback(callback func(supervisor string)) {
+	s.coord.SetClearPersistentRequestCallback(callback)
 }
 
 // Register delivery result callback

@@ -332,7 +332,7 @@ function updateSelectionControls() {
 
   if (deliverBtn) {
     deliverBtn.disabled = selected === 0 || !allSelectedOnline;
-    deliverBtn.innerHTML = `<i class="bi bi-truck"></i> Selected Delivery (${selected}/${total})`;
+    deliverBtn.innerHTML = `<i class="bi bi-truck"></i> Delivery (${selected}/${total})`;
   }
 }
 

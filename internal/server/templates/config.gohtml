@@ -262,6 +262,18 @@
                     />
                     Auto reposition game windows
                 </label>
+                <label>
+                    <input
+                            {{ if .AutoStart }}
+                                checked="checked"
+                            {{ end }}
+                            type="checkbox"
+                            name="auto_start"
+                            value="true"
+                    />
+                    Auto-start all characters on server startup (90 second intervals)
+                </label>
+
                 <h4>Debug</h4>
                 <fieldset class="grid">
                     <label>

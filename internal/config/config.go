@@ -42,6 +42,7 @@ type KooloCfg struct {
 	FirstRun              bool   `yaml:"firstRun"`
 	UseCustomSettings     bool   `yaml:"useCustomSettings"`
 	GameWindowArrangement bool   `yaml:"gameWindowArrangement"`
+	AutoStart             bool   `yaml:"auto_start"` // auto-start Koolo on launch
 	LogSaveDirectory      string `yaml:"logSaveDirectory"`
 	D2LoDPath             string `yaml:"D2LoDPath"`
 	D2RPath               string `yaml:"D2RPath"`

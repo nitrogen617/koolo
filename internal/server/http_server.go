@@ -17,11 +17,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
-	"sync"
-	
+
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,13 +45,13 @@ import (
 )
 
 type HttpServer struct {
-	logger      *slog.Logger
-	server      *http.Server
-	manager     *bot.SupervisorManager
-	templates   *template.Template
-	wsServer    *WebSocketServer
-	pickitAPI   *PickitAPI
-	sequenceAPI *SequenceAPI
+	logger          *slog.Logger
+	server          *http.Server
+	manager         *bot.SupervisorManager
+	templates       *template.Template
+	wsServer        *WebSocketServer
+	pickitAPI       *PickitAPI
+	sequenceAPI     *SequenceAPI
 	deliveryHistory []DeliveryHistoryEntry
 	deliveryFilters map[string]delivery.Filters
 	deliveryMux     sync.Mutex
@@ -585,6 +585,11 @@ func (s *HttpServer) Listen(port int) error {
 	go s.wsServer.Run()
 	go s.BroadcastStatus()
 
+	//auto start characters if enabled
+	if config.Koolo.AutoStart {
+		go s.autoStartCharacters()
+	}
+
 	http.HandleFunc("/", s.getRoot)
 	http.HandleFunc("/config", s.config)
 	http.HandleFunc("/supervisorSettings", s.characterSettings)
@@ -1025,6 +1030,7 @@ func (s *HttpServer) config(w http.ResponseWriter, r *http.Request) {
 		newConfig.Debug.Screenshots = r.Form.Get("debug_screenshots") == "true"
 		// Discord
 		newConfig.Discord.Enabled = r.Form.Get("discord_enabled") == "true"
+		newConfig.AutoStart = r.Form.Get("auto_start") == "true" // Auto-start Koolo on launch
 		newConfig.Discord.EnableGameCreatedMessages = r.Form.Has("enable_game_created_messages")
 		newConfig.Discord.EnableNewRunMessages = r.Form.Has("enable_new_run_messages")
 		newConfig.Discord.EnableRunFinishMessages = r.Form.Has("enable_run_finish_messages")
@@ -1756,4 +1762,27 @@ func (s *HttpServer) applyShoppingFromForm(r *http.Request, cfg *config.Characte
 	cfg.Shopping.VendorOrmus = r.Form.Has("shoppingVendorOrmus")
 	cfg.Shopping.VendorMalah = r.Form.Has("shoppingVendorMalah")
 	cfg.Shopping.VendorAnya = r.Form.Has("shoppingVendorAnya")
+}
+
+func (s *HttpServer) autoStartCharacters() {
+	s.logger.Info("Auto-start enabled, waiting 5 seconds for server stabilization...")
+	time.Sleep(5 * time.Second)
+
+	supervisors := s.manager.AvailableSupervisors()
+	s.logger.Info("Starting auto-start sequence", "total_characters", len(supervisors))
+
+	for i, characterName := range supervisors {
+		s.logger.Info("Auto-starting character",
+			"name", characterName,
+			"position", fmt.Sprintf("%d/%d", i+1, len(supervisors)))
+
+		go s.manager.Start(characterName, false, false)
+
+		if i < len(supervisors)-1 {
+			s.logger.Info("Waiting 90 seconds before next character...")
+			time.Sleep(90 * time.Second)
+		}
+	}
+
+	s.logger.Info("Auto-start sequence completed", "total_started", len(supervisors))
 }

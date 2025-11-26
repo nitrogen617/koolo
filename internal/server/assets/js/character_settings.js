@@ -1,4 +1,361 @@
+// ==================== RUN CATEGORY FILTERING ====================
+const RUN_CATEGORY_MAP = {
+    ALL: null, 
+    LEVELING: ["leveling", "leveling_sequence"],
+    BOSS: ["andariel", "duriel", "mephisto", "diablo", "baal", "countess", "summoner", "nihlathak"],
+    ELITE: ["pindleskin", "eldritch", "shenk", "threshsocket", "travincal", "fire_eye", "endugu"],
+    A85: ["pit", "ancient_tunnels", "mausoleum", "stony_tomb", "arachnid_lair", "drifter_cavern", "lower_kurast", "lower_kurast_chest", "tal_rasha_tombs"],
+    KEY: ["countess", "summoner", "nihlathak"],
+    SPECIAL: ["cows", "tristram", "terror_zone", "quests"],
+    UTILS: ["mule", "utility", "shopping", "development"],
+};
+
+function filterRunsByCategory(category) {
+    const runList = document.querySelectorAll('#disabled_runs li');
+    if (!runList) return;
+    const allowed = RUN_CATEGORY_MAP[category];
+    runList.forEach(li => {
+        if (!allowed || allowed.includes(li.getAttribute('value'))) {
+            li.style.display = '';
+        } else {
+            li.style.display = 'none';
+        }
+    });
+}
+
+function setupRunCategoryTabs() {
+    const tabs = document.querySelectorAll('.run-category-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            // Keep the selected tab visually highlighted
+            tabs.forEach(t => {
+                if (t.classList.contains('active')) {
+                    t.style.background = '#161a23';
+                    t.style.color = '#fff';
+                } else {
+                    t.style.background = 'none';
+                    t.style.color = '#161a23';
+                }
+            });
+            const category = this.getAttribute('data-category');
+            filterRunsByCategory(category);
+        });
+    });
+    // Apply initial tab styling on load
+    tabs.forEach(t => {
+        if (t.classList.contains('active')) {
+            t.style.background = '#161a23';
+            t.style.color = '#fff';
+        } else {
+            t.style.background = 'none';
+            t.style.color = '#161a23';
+        }
+    });
+}
+
+// Toggle game name/password fields based on Game/Companion checkboxes
+function updateGameNamePasswordVisibility() {
+    // Query fresh DOM nodes each time
+    var createLobbyGames = document.querySelector('input[name="createLobbyGames"]');
+    var companionLeader = document.querySelector('input[name="companionLeader"]');
+    var gameNamePasswordFields = document.getElementById('game-name-password-fields');
+    if (!createLobbyGames || !companionLeader || !gameNamePasswordFields) return;
+    if (createLobbyGames.checked || companionLeader.checked) {
+        gameNamePasswordFields.style.display = '';
+    } else {
+        gameNamePasswordFields.style.display = 'none';
+    }
+}
+window.updateGameNamePasswordVisibility = updateGameNamePasswordVisibility;
+
+function attachGameNamePasswordListeners() {
+    var createLobbyGames = document.querySelector('input[name="createLobbyGames"]');
+    var companionLeader = document.querySelector('input[name="companionLeader"]');
+    if (createLobbyGames) {
+        createLobbyGames.removeEventListener('change', updateGameNamePasswordVisibility);
+        createLobbyGames.addEventListener('change', updateGameNamePasswordVisibility);
+    }
+    if (companionLeader) {
+        companionLeader.removeEventListener('change', updateGameNamePasswordVisibility);
+        companionLeader.addEventListener('change', updateGameNamePasswordVisibility);
+    }
+}
+
+function ensureGameNamePasswordVisibility() {
+    attachGameNamePasswordListeners();
+    updateGameNamePasswordVisibility();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Enable drag handles for run-category mini tabs (Sortable.js)
+    var runCategoryTabs = document.getElementById('run-category-tabs');
+    if (runCategoryTabs && typeof Sortable !== 'undefined') {
+        runCategoryTabs.querySelectorAll('.run-category-tab').forEach(function (tab) {
+            if (!tab.querySelector('.run-category-handle')) {
+                const handle = document.createElement('span');
+                handle.className = 'run-category-handle';
+                handle.innerHTML = '\u22ee';
+                tab.insertBefore(handle, tab.firstChild);
+            }
+        });
+        new Sortable(runCategoryTabs, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            handle: '.run-category-handle',
+            filter: ".run-category-tab[data-category='ALL']",
+            preventOnFilter: false,
+            onMove: function (evt) {
+                // Prevent dragging the ALL tab
+                return !evt.related.classList.contains('run-category-tab') || evt.related.dataset.category !== 'ALL';
+            }
+        });
+    }
+    setupRunCategoryTabs();
+    // Make sure game name/password visibility is correct on first paint
+    setTimeout(ensureGameNamePasswordVisibility, 0);
+    setTimeout(ensureGameNamePasswordVisibility, 100);
+    setTimeout(ensureGameNamePasswordVisibility, 300);
+    // Default to ALL filter on load
+    filterRunsByCategory('ALL');
+});
+// ==================== TAB SYSTEM ====================
+const TAB_ORDER_STORAGE_KEY = 'koolo:tabOrder';
+const ACTIVE_TAB_STORAGE_KEY = 'koolo:activeTab';
+
+// Initialize tabs on page load
 window.onload = function () {
+    initializeTabs();
+    initializeRunLists();
+    initializeOtherFeatures();
+    setTimeout(ensureGameNamePasswordVisibility, 0);
+    setTimeout(ensureGameNamePasswordVisibility, 100);
+    setTimeout(ensureGameNamePasswordVisibility, 300);
+    initializeCardDrag();
+}
+
+// Cube recipes toggle (separate listener to avoid layout jump)
+document.addEventListener('DOMContentLoaded', function () {
+    var cubeToggle = document.querySelector('input[name="enableCubeRecipes"]');
+    var cubeTargets = document.querySelectorAll('.cube-toggle-target');
+    function updateCubeVisibility() {
+        if (!cubeToggle || !cubeTargets.length) return;
+        var show = cubeToggle.checked;
+        cubeTargets.forEach(function (el) {
+            if (show) {
+                el.classList.remove('cube-hidden');
+            } else {
+                el.classList.add('cube-hidden');
+            }
+            var inputs = el.querySelectorAll('input, select, textarea, button');
+            inputs.forEach(function (inp) {
+                inp.disabled = !show;
+            });
+        });
+    }
+    if (cubeToggle) {
+        cubeToggle.addEventListener('change', updateCubeVisibility);
+        updateCubeVisibility();
+    }
+
+    // Clone supervisor redirect for instant prefilling
+    var cloneSelect = document.getElementById('cloneFrom');
+    if (cloneSelect) {
+        cloneSelect.addEventListener('change', function () {
+            var val = cloneSelect.value;
+            if (val) {
+                window.location = '/supervisorSettings?clone=' + encodeURIComponent(val);
+            } else {
+                window.location = '/supervisorSettings';
+            }
+        });
+    }
+});
+
+// Card drag & drop per tab
+function initializeCardDrag() {
+    if (typeof Sortable === 'undefined') return;
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabContents.forEach(function (tab) {
+        const tabId = tab.id || tab.dataset.tab || 'default';
+        const storageKey = `koolo:cardOrder:${tabId}`;
+        const cards = Array.from(tab.querySelectorAll('.section-card'));
+        if (!cards.length) return;
+
+        // Insert drag handle if missing
+        cards.forEach(function (card) {
+            if (!card.querySelector('.card-handle')) {
+                const handle = document.createElement('div');
+                handle.className = 'card-handle';
+                handle.innerHTML = '\u22ee';
+                const heading = card.querySelector('.section-heading h3, .section-heading h4, .section-heading h5, h3, h4, h5, h6');
+                if (heading) {
+                    card.insertBefore(handle, card.firstChild);
+                } else {
+                    card.insertBefore(handle, card.firstChild);
+                }
+            }
+        });
+
+        // Apply saved order
+        try {
+            const savedOrder = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            savedOrder.forEach(function (id) {
+                const card = tab.querySelector(`.section-card[data-card-id="${id}"]`);
+                if (card) tab.appendChild(card);
+            });
+        } catch (e) {
+            console.error('Failed to load card order', e);
+        }
+
+        new Sortable(tab, {
+            animation: 150,
+            handle: '.card-handle',
+            draggable: '.section-card',
+            onEnd: function () {
+                const order = Array.from(tab.querySelectorAll('.section-card'))
+                    .map(function (c) { return c.dataset.cardId; })
+                    .filter(Boolean);
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(order));
+                } catch (e) {
+                    console.error('Failed to save card order', e);
+                }
+            }
+        });
+    });
+}
+
+// Cube recipes visibility toggle
+document.addEventListener('DOMContentLoaded', function () {
+    var cubeToggle = document.querySelector('input[name="enableCubeRecipes"]');
+    var cubeBody = document.getElementById('cube-recipes-body');
+    var cubeGrid = document.getElementById('cube-recipes-grid');
+
+    function updateCubeVisibility() {
+        if (!cubeToggle || !cubeBody || !cubeGrid) return;
+        var show = cubeToggle.checked;
+        cubeBody.style.display = show ? '' : 'none';
+        cubeGrid.style.display = show ? '' : 'none';
+    }
+
+    if (cubeToggle) {
+        cubeToggle.addEventListener('change', updateCubeVisibility);
+        updateCubeVisibility();
+    }
+});
+
+// ==================== TAB INITIALIZATION ====================
+function initializeTabs() {
+    const tabNavigation = document.getElementById('tabs-navigation');
+    const tabItems = document.querySelectorAll('.tab-item');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // Insert drag handles on tabs
+    tabItems.forEach(tab => {
+        if (!tab.querySelector('.tab-drag-handle')) {
+            const handle = document.createElement('span');
+            handle.className = 'tab-drag-handle';
+            handle.innerHTML = '\u22ee';
+            tab.insertBefore(handle, tab.firstChild);
+        }
+    });
+
+    // Load saved tab order from localStorage
+    loadTabOrder();
+
+    // Make tabs sortable (drag & drop)
+    new Sortable(tabNavigation, {
+        animation: 150,
+        handle: '.tab-drag-handle',
+        onEnd: function (evt) {
+            saveTabOrder();
+        }
+    });
+
+    // Add click event listeners to tabs
+    tabItems.forEach(tab => {
+        tab.addEventListener('click', function () {
+            switchTab(this.getAttribute('data-tab'));
+        });
+    });
+
+    // Load last active tab or default to first tab
+    const lastActiveTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    if (lastActiveTab && document.querySelector(`[data-tab="${lastActiveTab}"]`)) {
+        switchTab(lastActiveTab);
+    } else {
+        const firstTab = tabItems[0]?.getAttribute('data-tab');
+        if (firstTab) switchTab(firstTab);
+    }
+}
+
+// ==================== TAB SWITCHING ====================
+function switchTab(tabName) {
+    const tabItems = document.querySelectorAll('.tab-item');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // Remove active class from all tabs and contents
+    tabItems.forEach(tab => tab.classList.remove('active'));
+    tabContents.forEach(content => content.classList.remove('active'));
+
+    // Add active class to selected tab and content
+    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    const selectedContent = document.getElementById(`tab-${tabName}`);
+
+    if (selectedTab && selectedContent) {
+        selectedTab.classList.add('active');
+        selectedContent.classList.add('active');
+
+        // Save active tab to localStorage
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabName);
+    }
+    // Recheck game name/password visibility in case the tab change moved fields
+    setTimeout(ensureGameNamePasswordVisibility, 0);
+    setTimeout(ensureGameNamePasswordVisibility, 100);
+    setTimeout(ensureGameNamePasswordVisibility, 300);
+}
+
+// ==================== TAB ORDER MANAGEMENT ====================
+function saveTabOrder() {
+    const tabNavigation = document.getElementById('tabs-navigation');
+    const tabItems = tabNavigation.querySelectorAll('.tab-item');
+    const tabOrder = Array.from(tabItems).map(tab => tab.getAttribute('data-tab'));
+    
+    try {
+        localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
+    } catch (error) {
+        console.error('Failed to save tab order:', error);
+    }
+}
+
+function loadTabOrder() {
+    try {
+        const savedOrder = localStorage.getItem(TAB_ORDER_STORAGE_KEY);
+        if (!savedOrder) return;
+
+        const tabOrder = JSON.parse(savedOrder);
+        const tabNavigation = document.getElementById('tabs-navigation');
+        const tabItems = Array.from(tabNavigation.querySelectorAll('.tab-item'));
+
+        // Reorder tabs based on saved order
+        tabOrder.forEach(tabName => {
+            const tab = tabItems.find(item => item.getAttribute('data-tab') === tabName);
+            if (tab) {
+                tabNavigation.appendChild(tab);
+            }
+        });
+    } catch (error) {
+        console.error('Failed to load tab order:', error);
+    }
+}
+
+// ==================== RUN LISTS INITIALIZATION ====================
+function initializeRunLists() {
     let enabled_runs_ul = document.getElementById('enabled_runs');
     let disabled_runs_ul = document.getElementById('disabled_runs');
     let searchInput = document.getElementById('search-disabled-runs');
@@ -59,6 +416,7 @@ window.onload = function () {
     });
 }
 
+// ==================== RUN LIST FUNCTIONS ====================
 function updateEnabledRunsHiddenField() {
     let listItems = document.querySelectorAll('#enabled_runs li');
     let values = Array.from(listItems).map(function (item) {
@@ -131,7 +489,8 @@ function updateButtonForDisabledRun(runElement) {
     button.innerHTML = '<i class="bi bi-plus"></i>';
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+// ==================== OTHER FEATURES INITIALIZATION ====================
+function initializeOtherFeatures() {
     const schedulerEnabled = document.querySelector('input[name="schedulerEnabled"]');
     const schedulerSettings = document.getElementById('scheduler-settings');
     const characterClassSelect = document.querySelector('select[name="characterClass"]');
@@ -332,15 +691,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    document.getElementById('tzTrackAll')?.addEventListener('change', function (e) {
+        document.querySelectorAll('.tzTrackCheckbox').forEach(checkbox => {
+            checkbox.checked = e.target.checked;
+        });
+    });
+
     function filterRunewords(searchTerm = '') { // Default parameter to ensure previously checked runewords show before searching
         let listItems = document.querySelectorAll('.runeword-item');
         searchTerm = searchTerm.toLowerCase();
+        const showAllToggle = document.getElementById('runeword-show-all');
+        const forceShowAll = showAllToggle ? showAllToggle.checked : false;
 
         listItems.forEach(function (item) {
             const isChecked = item.querySelector('input[type="checkbox"]').checked;
             const rwName = item.querySelector('.runeword-name').textContent.toLowerCase();
 
-            if (isChecked || (searchTerm && rwName.includes(searchTerm))) {
+            if (forceShowAll || isChecked || (searchTerm && rwName.includes(searchTerm))) {
                 item.style.display = '';
             } else {
                 item.style.display = 'none';
@@ -355,6 +722,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.addEventListener('change', function (e) {
             if (e.target.matches('.runeword-item input[type="checkbox"]')) {
+                filterRunewords(runewordSearchInput.value);
+            }
+            if (e.target.id === 'runeword-show-all') {
                 filterRunewords(runewordSearchInput.value);
             }
         });
@@ -553,7 +923,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     updateLevelingSequenceActionState();
-});
+}
 
 function handleBossStaticThresholdChange() {
     const input = document.getElementById('novaBossStaticThreshold');

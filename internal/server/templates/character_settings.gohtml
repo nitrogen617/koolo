@@ -137,35 +137,40 @@
                 </div>
 
                 <!-- Packet Usage Options -->
-                <article class="section-card warning-card" data-card-id="connection-warning">
-                    <header><strong>WARNING: USING PACKETS</strong></header>
+                <article class="section-card warning-card packet-warning" data-card-id="connection-warning" data-collapsible="packet-warning">
+                    <header class="warning-header">
+                        <strong>WARNING: USING PACKETS</strong>
+                        <button type="button" class="warning-toggle" aria-expanded="false">SHOW OPTIONS</button>
+                    </header>
                     <p class="section-note">
                         These options send network packets directly instead of simulating clicks. Safer mouse-clicking is recommended unless you know the risks.
                     </p>
-                    <fieldset class="grid">
-                        <label>
-                            <input type="checkbox" name="packetCastingUseForItemPickup" {{ if .Config.PacketCasting.UseForItemPickup }}checked{{ end }}/>
-                            Use packets for item pickup
-                        </label>
-                    </fieldset>
-                    <fieldset class="grid">
-                        <label>
-                            <input type="checkbox" name="packetCastingUseForTpInteraction" {{ if .Config.PacketCasting.UseForTpInteraction }}checked{{ end }}/>
-                            Use packets for TP interaction
-                        </label>
-                        <label style="visibility: hidden;">
-                            <!-- Spacer for grid alignment -->
-                        </label>
-                    </fieldset>
-                    <fieldset class="grid">
-                        <label>
-                            <input type="checkbox" name="packetCastingUseForEntranceInteraction" {{ if .Config.PacketCasting.UseForEntranceInteraction }}checked{{ end }}/>
-                            Use packets for entrance interaction
-                        </label>
-                        <label style="visibility: hidden;">
-                            <!-- Spacer for grid alignment -->
-                        </label>
-                    </fieldset>
+                    <div class="warning-body" id="packet-warning-body" style="display: none;">
+                        <fieldset class="grid">
+                            <label>
+                                <input type="checkbox" name="packetCastingUseForItemPickup" {{ if .Config.PacketCasting.UseForItemPickup }}checked{{ end }}/>
+                                Use packets for item pickup
+                            </label>
+                        </fieldset>
+                        <fieldset class="grid">
+                            <label>
+                                <input type="checkbox" name="packetCastingUseForTpInteraction" {{ if .Config.PacketCasting.UseForTpInteraction }}checked{{ end }}/>
+                                Use packets for TP interaction
+                            </label>
+                            <label style="visibility: hidden;">
+                                <!-- Spacer for grid alignment -->
+                            </label>
+                        </fieldset>
+                        <fieldset class="grid">
+                            <label>
+                                <input type="checkbox" name="packetCastingUseForEntranceInteraction" {{ if .Config.PacketCasting.UseForEntranceInteraction }}checked{{ end }}/>
+                                Use packets for entrance interaction
+                            </label>
+                            <label style="visibility: hidden;">
+                                <!-- Spacer for grid alignment -->
+                            </label>
+                        </fieldset>
+                    </div>
                 </article>
 
                 <!-- Scheduler -->
@@ -713,13 +718,13 @@
                                                                     <!-- Run Category Mini Tabs -->
                                                                     <div id="run-category-tabs" style="display: flex; gap: 0.7em; margin-bottom: 0.7em; width: 100%; justify-content: space-between; align-items: stretch; min-height: 2.5em;">
                                                                           <button type="button" class="run-category-tab active" data-category="ALL">ALL</button>
-                                                                          <button type="button" class="run-category-tab" data-category="LEVELING">LEVELING</button>
-                                                                          <button type="button" class="run-category-tab" data-category="BOSS">BOSS</button>
-                                                                          <button type="button" class="run-category-tab" data-category="ELITE">ELITE</button>
+                                                                          <button type="button" class="run-category-tab" data-category="Leveling">Leveling</button>
+                                                                          <button type="button" class="run-category-tab" data-category="ActBoss">Act Boss</button>
+                                                                          <button type="button" class="run-category-tab" data-category="SUnique">S.Unique</button>
                                                                           <button type="button" class="run-category-tab" data-category="A85">A85</button>
-                                                                          <button type="button" class="run-category-tab" data-category="KEY">KEY</button>
-                                                                          <button type="button" class="run-category-tab" data-category="SPECIAL">SPECIAL</button>
-                                                                          <button type="button" class="run-category-tab" data-category="UTILS">UTILS</button>
+                                                                          <button type="button" class="run-category-tab" data-category="Key">Key</button>
+                                                                          <button type="button" class="run-category-tab" data-category="Special">Special</button>
+                                                                          <button type="button" class="run-category-tab" data-category="Utils">Utils</button>
                                                                     </div>
                                                                     <div style="display: flex; gap: 2em; align-items: flex-start;">
                                         <div style="flex:1; min-width:0;">
@@ -861,6 +866,5 @@
 </main>
 </body>
 </html>
-
 
 

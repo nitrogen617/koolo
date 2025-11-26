@@ -1,13 +1,13 @@
 // ==================== RUN CATEGORY FILTERING ====================
 const RUN_CATEGORY_MAP = {
     ALL: null, 
-    LEVELING: ["leveling", "leveling_sequence"],
-    BOSS: ["andariel", "duriel", "mephisto", "diablo", "baal", "countess", "summoner", "nihlathak"],
-    ELITE: ["pindleskin", "eldritch", "shenk", "threshsocket", "travincal", "fire_eye", "endugu"],
-    A85: ["pit", "ancient_tunnels", "mausoleum", "stony_tomb", "arachnid_lair", "drifter_cavern", "lower_kurast", "lower_kurast_chest", "tal_rasha_tombs"],
-    KEY: ["countess", "summoner", "nihlathak"],
-    SPECIAL: ["cows", "tristram", "terror_zone", "quests"],
-    UTILS: ["mule", "utility", "shopping", "development"],
+    Leveling: ["leveling", "leveling_sequence"],
+    ActBoss: ["andariel", "duriel", "mephisto", "diablo", "baal"],
+    SUnique: ["pindleskin", "eldritch", "shenk", "threshsocket", "travincal", "fire_eye", "endugu", "countess", "summoner", "nihlathak"],
+    A85: ["pit", "ancient_tunnels", "mausoleum", "stony_tomb", "arachnid_lair", "drifter_cavern", "diablo", "baal"],
+    Key: ["countess", "summoner", "nihlathak"],
+    Special: ["cows", "tristram", "terror_zone", "quests", "lower_kurast_chest"],
+    Utils: ["mule", "utility", "shopping", "development"],
 };
 
 function filterRunsByCategory(category) {
@@ -88,6 +88,41 @@ function ensureGameNamePasswordVisibility() {
     updateGameNamePasswordVisibility();
 }
 
+// Warning: packet usage toggle
+function initializePacketWarningToggle() {
+    const warningCard = document.querySelector('[data-collapsible="packet-warning"]');
+    if (!warningCard) return;
+
+    const toggleButton = warningCard.querySelector('.warning-toggle');
+    const warningBody = warningCard.querySelector('.warning-body');
+    if (!toggleButton || !warningBody) return;
+
+    const checkboxes = Array.from(warningBody.querySelectorAll('input[type="checkbox"]'));
+
+    function setExpanded(expanded) {
+        warningCard.classList.toggle('open', expanded);
+        warningBody.style.display = expanded ? '' : 'none';
+        toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        toggleButton.textContent = expanded ? 'HIDE OPTIONS' : 'SHOW OPTIONS';
+    }
+
+    // Auto-open if any option is already enabled
+    const startOpen = checkboxes.some(cb => cb.checked);
+    setExpanded(startOpen);
+
+    toggleButton.addEventListener('click', function () {
+        const isOpen = warningCard.classList.contains('open');
+        setExpanded(!isOpen);
+    });
+
+    // If a checkbox is enabled while closed, open the panel so the change is visible
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function () {
+            if (cb.checked) setExpanded(true);
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Enable drag handles for run-category mini tabs (Sortable.js)
     var runCategoryTabs = document.getElementById('run-category-tabs');
@@ -115,6 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     setupRunCategoryTabs();
+    initializePacketWarningToggle();
     // Make sure game name/password visibility is correct on first paint
     setTimeout(ensureGameNamePasswordVisibility, 0);
     setTimeout(ensureGameNamePasswordVisibility, 100);

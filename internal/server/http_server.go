@@ -1077,7 +1077,16 @@ func (s *HttpServer) config(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *HttpServer) characterSettings(w http.ResponseWriter, r *http.Request) {
+	// Ensure HTML is rendered instead of shown as plain text
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	sequenceFiles := s.listLevelingSequenceFiles()
+	allCharacters := config.GetCharacters()
+	allSupervisors := make([]string, 0, len(allCharacters))
+	for name := range allCharacters {
+		allSupervisors = append(allSupervisors, name)
+	}
+	sort.Strings(allSupervisors)
 	var err error
 	if r.Method == http.MethodPost {
 		err = r.ParseForm()
@@ -1086,24 +1095,39 @@ func (s *HttpServer) characterSettings(w http.ResponseWriter, r *http.Request) {
 				Version:               config.Version,
 				ErrorMessage:          err.Error(),
 				LevelingSequenceFiles: sequenceFiles,
+				AllSupervisors:        allSupervisors,
+				Clone:                 r.Form.Get("cloneFrom"),
 			})
 
 			return
 		}
 
 		supervisorName := r.Form.Get("name")
+		cloneFrom := strings.TrimSpace(r.Form.Get("cloneFrom"))
 		cfg, found := config.GetCharacter(supervisorName)
 		if !found {
-			err = config.CreateFromTemplate(supervisorName)
-			if err != nil {
+			if err := config.CreateFromTemplate(supervisorName); err != nil {
 				s.templates.ExecuteTemplate(w, "character_settings.gohtml", CharacterSettings{
 					Version:               config.Version,
 					ErrorMessage:          err.Error(),
 					Supervisor:            supervisorName,
 					LevelingSequenceFiles: sequenceFiles,
+					AllSupervisors:        allSupervisors,
+					Clone:                 cloneFrom,
 				})
 
 				return
+			}
+			cfg, _ = config.GetCharacter(supervisorName)
+			if cloneFrom != "" {
+				if src, ok := allCharacters[cloneFrom]; ok && cfg != nil {
+					var cloned config.CharacterCfg
+					if data, err := json.Marshal(src); err == nil {
+						if err := json.Unmarshal(data, &cloned); err == nil {
+							*cfg = cloned
+						}
+					}
+				}
 			}
 		}
 
@@ -1477,9 +1501,16 @@ func (s *HttpServer) characterSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	supervisor := r.URL.Query().Get("supervisor")
+	clone := r.URL.Query().Get("clone")
 	cfg, _ := config.GetCharacter("template")
 	if supervisor != "" {
-		cfg, _ = config.GetCharacter(supervisor)
+		if c, ok := config.GetCharacter(supervisor); ok {
+			cfg = c
+		}
+	} else if clone != "" {
+		if c, ok := config.GetCharacter(clone); ok {
+			cfg = c
+		}
 	}
 
 	enabledRuns := make([]string, 0)
@@ -1508,7 +1539,7 @@ func (s *HttpServer) characterSettings(w http.ResponseWriter, r *http.Request) {
 	// and farmer profiles (for mule's return character dropdown)
 	muleProfiles := []string{}
 	farmerProfiles := []string{}
-	allCharacters := config.GetCharacters()
+	allCharacters = config.GetCharacters()
 	for profileName, profileCfg := range allCharacters {
 		if strings.ToLower(profileCfg.Character.Class) == "mule" {
 			muleProfiles = append(muleProfiles, profileName)
@@ -1542,6 +1573,8 @@ func (s *HttpServer) characterSettings(w http.ResponseWriter, r *http.Request) {
 		AvailableProfiles:     muleProfiles,
 		FarmerProfiles:        farmerProfiles,
 		LevelingSequenceFiles: sequenceFiles,
+		AllSupervisors:        allSupervisors,
+		Clone:                 clone,
 	})
 }
 

@@ -1,4 +1,3 @@
-{{$topLevelContext := .}}
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,8 +9,8 @@
     <link rel="stylesheet" href="../assets/css/dashboard.css">
     <link rel="stylesheet" href="../assets/css/bootstrap-icons.css">
     <script src="../assets/js/Sortable.min.js"></script>
-<script src="../assets/js/character_settings.js"></script>
-<title>Koolo Settings</title>
+    <script src="../assets/js/character_settings.js"></script>
+    <title>Koolo Settings</title>
 </head>
 <body class="settings-page">
 <main class="container">
@@ -48,21 +47,18 @@
                 {{ end }}
             </div>
 
-            <!-- ==================== TAB NAVIGATION ==================== -->
             <div class="tabs-container">
                 <ul class="tabs-navigation" id="tabs-navigation">
                     <li class="tab-item active" data-tab="connection">Connection</li>
                     <li class="tab-item" data-tab="character">Character</li>
                     <li class="tab-item" data-tab="inventory">Inventory</li>
-                    <li class="tab-item" data-tab="runs">Game</li>
+                    <li class="tab-item" data-tab="runs">Runs</li>
                     <li class="tab-item" data-tab="crafting">Crafting</li>
                 </ul>
             </div>
 
-            <!-- ==================== TAB 1: CONNECTION ==================== -->
             <div class="tab-content active" id="tab-connection">
                 
-                <!-- Battle.net Settings -->
                 <div class="section-card" data-card-id="connection-bnet">
                     <div class="section-heading">
                         <h3>Battle.net settings</h3>
@@ -104,7 +100,6 @@
                     </fieldset>
                 </div>
 
-                <!-- Client Settings -->
                 <div class="section-card" data-card-id="connection-client">
                     <div class="section-heading">
                         <h3>Client Settings</h3>
@@ -136,7 +131,6 @@
                     </fieldset>
                 </div>
 
-                <!-- Packet Usage Options -->
                 <article class="section-card warning-card packet-warning" data-card-id="connection-warning" data-collapsible="packet-warning">
                     <header class="warning-header">
                         <strong>WARNING: USING PACKETS</strong>
@@ -158,8 +152,7 @@
                                 Use packets for TP interaction
                             </label>
                             <label style="visibility: hidden;">
-                                <!-- Spacer for grid alignment -->
-                            </label>
+                                </label>
                         </fieldset>
                         <fieldset class="grid">
                             <label>
@@ -167,13 +160,11 @@
                                 Use packets for entrance interaction
                             </label>
                             <label style="visibility: hidden;">
-                                <!-- Spacer for grid alignment -->
-                            </label>
+                                </label>
                         </fieldset>
                     </div>
                 </article>
 
-                <!-- Scheduler -->
                 <div class="section-card" data-card-id="connection-scheduler">
                     <div class="section-heading">
                         <h3>Scheduler</h3>
@@ -211,17 +202,15 @@
 
             </div>
 
-            <!-- ==================== TAB 2: CHARACTER ==================== -->
             <div class="tab-content" id="tab-character">
                 
-                <!-- Character Class, Name, Non-Ladder (??�??�렬) -->
                 <div class="section-card" data-card-id="character-profile">
                     <div class="section-heading">
                         <h3>Character profile</h3>
                         <p class="section-note">Pick class, name, and ladder type.</p>
                     </div>
                     <fieldset class="character-row-flex">
-                        <label style="text-align: left; font-size: 1.15em; font-weight: 600; color: #ffffff;">
+                        <label style="text-align: left; font-size: 1em; font-weight: 600; color: #ffffff;">
                             Class<br>
                             <select name="characterClass">
                                 {{ if eq .Version "dev" }}
@@ -248,7 +237,7 @@
                                 <option value="berserker" {{ if eq .Config.Character.Class "berserker" }}selected{{ end }}>Berserk Barbarian</option>
                             </select>
                         </label>
-                        <label style="text-align: left; font-size: 1.15em; font-weight: 600; color: #ffffff;">
+                        <label style="text-align: left; font-size: 1em; font-weight: 600; color: #ffffff;">
                             Character name<br>
                             <input name="characterName" placeholder="{{ .Config.CharacterName }}" value="{{ .Config.CharacterName }}"/>
                         </label>
@@ -339,7 +328,6 @@
                     </div>
                 </div>
 
-                <!-- General Character Settings -->
                 <article class="section-card" data-card-id="character-general">
                     <h5>General Settings</h5>
                     <fieldset class="grid">
@@ -441,7 +429,7 @@
 
                     <div class="section-heading" style="margin-top: 1rem;">
                         <h4>Merc Settings</h4>
-                        <label style="margin: 0; display: flex; align-items: center; gap: 0.45rem;">
+                        <label style="margin: 0; align-items: center; gap: 0.45rem;">
                             <input id="use_merc" type="checkbox" name="useMerc" {{ if .Config.Character.UseMerc }}checked{{ end }}/>
                             Use merc
                         </label>
@@ -486,12 +474,10 @@
 
             </div>
 
-            <!-- ==================== TAB 3: INVENTORY ==================== -->
             <div class="tab-content" id="tab-inventory">
                 
-                <!-- Belt Layout -->
                 <div class="section-card" data-card-id="inventory-belt">
-                    <h4 style="margin-bottom: 0.4rem;">Belt Layout</h4>
+                     <h4 style="margin-bottom: 1.3rem;">Belt Layout</h4>
                     <fieldset class="grid">
                         {{ range $index, $potionType := .Config.Inventory.BeltColumns }}
                         <label>
@@ -506,9 +492,8 @@
                     </fieldset>
                 </div>
 
-                <!-- Potions in Inventory -->
                 <div class="section-card" data-card-id="inventory-potions">
-                    <h4 style="margin-bottom: 0.4rem;">Potions in inventory</h4>
+                    <h4 style="margin-bottom: 1.3rem;">Potions in inventory</h4>
                     <fieldset class="grid potions-box">
                         <label>
                             Healing potions
@@ -525,9 +510,8 @@
                     </fieldset>
                 </div>
 
-                <!-- Inventory Lock -->
                 <div class="section-card" data-card-id="inventory-lock">
-                    <h5 style="margin-bottom: 0.5rem;">Inventory (Checked means locked)</h5>
+                    <h5>Inventory (Checked means locked)</h5>
                     <div class="inventory-lock-box">
                         <table class="inventory-lock">
                             {{ range $rowIndex, $row := .Config.Inventory.InventoryLock }}
@@ -543,7 +527,6 @@
                     </div>
                 </div>
 
-                <!-- Muling -->
                 <div class="section-card" data-card-id="inventory-muling">
                     <h3>Muling</h3>
                     <p>Configure automatic muling to transfer items from this character to mule characters. Items will be moved from shared stash tabs (2-4) to the mule's private stash (tab 1).</p>
@@ -552,7 +535,6 @@
                         Enable Muling
                     </label>
                     <div id="mule-settings" style="{{ if not .Config.Muling.Enabled }}display: none;{{ end }}">
-                        <!-- Farmer: Show mule profile list -->
                         <div id="farmer-mule-settings" style="{{ if eq .Config.Character.Class "mule" }}display: none;{{ end }}">
                             <div id="mule-profiles-container">
                                 <h6>Mule Characters (in order of use)</h6>
@@ -573,7 +555,6 @@
                                 <button type="button" id="add-mule-profile" class="outline"><i class="bi bi-plus-circle"></i> Add Mule Character</button>
                             </div>
                         </div>
-                        <!-- Mule: Show return to character and info -->
                         <div id="mule-character-settings" style="{{ if ne .Config.Character.Class "mule" }}display: none;{{ end }}">
                             <div id="mule-character-info">
                                 <p><i class="bi bi-info-circle"></i> <strong>Mule Character</strong><br>
@@ -653,10 +634,8 @@
 
             </div>
 
-            <!-- ==================== TAB 4: RUNS ==================== -->
             <div class="tab-content" id="tab-runs">
                 
-                                <!-- Game & Companion Settings -->
                                 <div class="section-card" data-card-id="runs-game">
                                     <div class="section-heading">
                                         <h3>Game & Companion Settings</h3>
@@ -702,11 +681,10 @@
 
 
 
-                                <!-- Run Settings -->
                                 <div class="section-card" data-card-id="runs-main">
                                     <div class="section-heading" style="margin-bottom: 0.5rem; align-items: center; justify-content: space-between;">
                                         <h4 style="margin: 0;">Run Settings</h4>
-                                        <label style="margin: 0; display: flex; align-items: center; gap: 0.4em;">
+                                        <label style="margin: 0; align-items: center; gap: 0.4em;">
                                             <input type="checkbox" name="gameRandomizeRuns" {{ if .Config.Game.RandomizeRuns }}checked{{ end }}/>
                                             Randomize run order
                                         </label>
@@ -715,7 +693,6 @@
                                             Choose the runs that you want the bot to run. You can either drag & drop runs below to enable or disable them, or use the + - buttons. Click on any of the runs to expand them and see more details and options.
                                     </label><br>
                     <input type="hidden" id="gameRuns" name="gameRuns" value="">
-                                                                    <!-- Run Category Mini Tabs -->
                                                                     <div id="run-category-tabs" style="display: flex; gap: 0.7em; margin-bottom: 0.7em; width: 100%; justify-content: space-between; align-items: stretch; min-height: 2.5em;">
                                                                           <button type="button" class="run-category-tab active" data-category="ALL">ALL</button>
                                                                           <button type="button" class="run-category-tab" data-category="Leveling">Leveling</button>
@@ -731,14 +708,14 @@
                                             <h6>Enabled Runs:</h6>
                                             <ul class="run-list" id="enabled_runs">
                                 {{ range $index, $run := .EnabledRuns }}
-                                {{ if or (eq $topLevelContext.Version "dev") (ne $run "development") }}
+                                {{ if or (eq $.Version "dev") (ne $run "development") }}
                                 <li value="{{ $run }}">
                                     <details>
                                         <summary role="button" class="outline secondary">
                                             <span>{{ $run }}</span>
                                             <button type="button" class="remove-run" title="Remove run"><i class="bi bi-dash"></i></button>
                                         </summary>
-                                        {{ executeTemplateByName $run $topLevelContext }}
+                                        {{ executeTemplateByName $run $ }}
                                     </details>
                                 </li>
                                 {{ end }}
@@ -750,14 +727,14 @@
                                         <input type="text" id="search-disabled-runs" placeholder="Search runs...">
                                             <ul class="run-list" id="disabled_runs">
                                 {{ range $index, $run := .DisabledRuns }}
-                                {{ if or (eq $topLevelContext.Version "dev") (ne $run "development") }}
+                                {{ if or (eq $.Version "dev") (ne $run "development") }}
                                 <li value="{{ $run }}">
                                     <details>
                                         <summary role="button" class="outline secondary">
                                             <span>{{ $run }}</span>
                                             <button type="button" class="add-run" title="Add run"><i class="bi bi-plus"></i></button>
                                         </summary>
-                                        {{ executeTemplateByName $run $topLevelContext }}
+                                        {{ executeTemplateByName $run $ }}
                                     </details>
                                 </li>
                                 {{ end }}
@@ -769,11 +746,9 @@
 
             </div>
 
-            <!-- ==================== TAB 5: CRAFTING ==================== -->
             <div class="tab-content" id="tab-crafting">
                 
-                <!-- Cube Recipes -->
-                <div class="section-card" data-card-id="crafting-cube">
+<div class="section-card" data-card-id="crafting-cube">
                     <div class="section-heading" style="align-items: center; justify-content: space-between;">
                         <h3>Cube Recipes</h3>
                         <label style="margin: 0; display: flex; align-items: center; gap: 0.4em;">
@@ -800,17 +775,22 @@
                             </label>
                         </div>
                     </div>
-                    <div id="cube-recipes-grid" class="recipe-grid cube-toggle-target {{ if not .Config.CubeRecipes.Enabled }}cube-hidden{{ end }}">
+                    
+                    <div class="cube-toggle-target {{ if not .Config.CubeRecipes.Enabled }}cube-hidden{{ end }}" style="margin-top: 1rem;">
+                        <div id="recipe-tab-nav" class="recipe-tab-nav"></div>
+                        <div id="recipe-grid-container" class="recipe-main-grid"></div>
+                        </div>
+
+                    <div id="hidden-recipe-source" style="display: none;">
                         {{ range $index, $recipe := .RecipeList }}
-                        <label>
+                        <label class="recipe-item" data-name="{{ $recipe }}">
                             <input type="checkbox" name="enabledRecipes" value="{{ $recipe }}" {{ if contains $.Config.CubeRecipes.EnabledRecipes $recipe }}checked{{ end }}>
-                            {{ $recipe }}
+                            <span>{{ $recipe }}</span>
                         </label>
                         {{ end }}
                     </div>
                 </div>
 
-                <!-- Create Runewords -->
                 <div class="section-card" data-card-id="crafting-runewords">
                     <h3>Create Runewords</h3>
                     <div style="margin-left: 20px;">
@@ -835,8 +815,7 @@
                         </div>
                         <div class="recipe-grid" id="runeword-recipe-grid">
                             {{ range $index, $recipe := .RunewordRecipeList }}
-                                <label class="runeword-item" style="display: none;"> <!-- Initially hidden -->
-                                    <input type="checkbox" name="gameLevelingEnabledRunewordRecipes" value="{{ $recipe }}" {{ if contains $.Config.Game.Leveling.EnabledRunewordRecipes $recipe }}checked{{ end }}>
+                                <label class="runeword-item" style="display: none;"> <input type="checkbox" name="gameLevelingEnabledRunewordRecipes" value="{{ $recipe }}" {{ if contains $.Config.Game.Leveling.EnabledRunewordRecipes $recipe }}checked{{ end }}>
                                     <span class="runeword-name">{{ $recipe }}</span>
                                 </label>
                             {{ end }}
@@ -845,7 +824,6 @@
                 </div>
 
 
-                <!-- Gambling -->
                 <div class="section-card" data-card-id="crafting-gambling">
                     <h3>Gambling</h3>
                     <label>
@@ -854,10 +832,7 @@
                     </label>
                 </div>
 
-            </div>
-
-            <!-- Save/Cancel Buttons (Sticky at bottom) -->
-            <fieldset class="sticky-bottom">
+            </div> <fieldset class="sticky-bottom">
                 <a href="/"><input type="button" value="Cancel" class="secondary"/></a>
                 <input type="submit" value="Save"/>
             </fieldset>
@@ -866,5 +841,3 @@
 </main>
 </body>
 </html>
-
-

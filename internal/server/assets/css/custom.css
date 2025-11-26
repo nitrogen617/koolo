@@ -87,17 +87,12 @@ body.settings-page .container {
 
 .card-handle {
   position: absolute;
-  
-  /* 패딩 때문에 밀려난 만큼 밖으로 다시 잡아 당깁니다 (음수 값) */
   top: -0.2rem;   
   right: -0.2rem; 
-  
-  /* 드래그가 잘 되도록 클릭 영역을 빵빵하게 줍니다 */
   padding: 0.8rem; 
-  
   cursor: grab;
   font-size: 1.2rem;
-  line-height: 1; /* 줄 간격 때문에 위치가 어긋나는 것 방지 */
+  line-height: 1;
   color: var(--text-secondary);
   opacity: 0.4;
   z-index: 10;
@@ -139,15 +134,59 @@ body.settings-page .container {
   background: #2c2414;
 }
 
-.warning-card header { 
-  background: transparent; 
-  padding: 0; 
-  margin-bottom: 0.4rem; 
+.warning-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.2rem;
+  background: transparent;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 179, 71, 0.2);
+  padding-bottom: 0.8rem;
 }
 
-.warning-card header strong { 
-  color: #ff6b35; 
-  letter-spacing: 0.5px; 
+.warning-card header strong {
+  margin-left: 0.8rem;
+  margin-top: 0.1rem;
+  color: #ff6b35;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+}
+
+.warning-card header button,
+.warning-card header .warning-toggle {
+  margin-right: 1.5rem;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  height: auto;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 107, 53, 0.1); 
+  border: 1px solid #ff6b35;  
+  color: #ff6b35;             
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+}
+
+.warning-card header button:hover,
+.warning-card header .warning-toggle:hover {
+  background: #ff6b35;
+  color: #2c2414;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.warning-card header button:active,
+.warning-card header .warning-toggle:active {
+  transform: translateY(0);
+  opacity: 0.8;
 }
 
 .warning-card .section-note { 
@@ -197,7 +236,6 @@ body.settings-page .container {
 .tab-item {
   flex: 1;
   min-width: 120px;
-  /* 패딩: 핸들 공간(좌측)을 확보하고 상하 여백 설정 */
   padding: 0.75rem 1rem 0.75rem 1.5rem; 
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -207,20 +245,17 @@ body.settings-page .container {
   transition: all var(--transition-fast);
   user-select: none;
   white-space: nowrap;
-  
   display: flex;
   align-items: center;
-  justify-content: center; /* 텍스트를 중앙으로 정렬 */
-  position: relative;      /* 핸들의 절대 위치 기준점 */
+  justify-content: center;
+  position: relative;
 }
 
 .tab-drag-handle {
-  /* 텍스트 정렬에 영향 주지 않도록 절대 위치로 변경 */
   position: absolute; 
-  left: 8px;           /* 좌측 끝 고정 */
-  top: 50%;            /* 상하 중앙 배치 */
-  transform: translateY(-50%); /* 정확한 수직 중앙 정렬 */
-  
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   cursor: grab;
   font-size: 1.2rem;
   line-height: 1;
@@ -453,29 +488,45 @@ input[type="checkbox"] { accent-color: var(--primary); }
   border-top: 6px solid var(--primary);
 }
 
-/* ========================================
-   5. SPECIFIC MODULES
-   ======================================== */
+/* ==================== 5. SPECIFIC MODULES ==================== */
+
+/* --- Client Settings Grid Fix --- */
+div[data-card-id="connection-client"] fieldset:nth-of-type(2) {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 0.5rem 1rem;
+    margin-bottom: 0 !important;
+}
+
+/* --- Gambling Alignment --- */
+div[data-card-id="crafting-gambling"] {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: space-between;
+}
+div[data-card-id="crafting-gambling"] h3 { margin: 0 !important; }
+div[data-card-id="crafting-gambling"] label {
+    width: auto !important; margin: 0 !important; margin-right: 1.5rem !important;
+    display: flex; align-items: center; gap: 0.5rem; flex-direction: row-reverse;
+}
+
+/* --- Run Category Tabs --- */
 .run-category-tab {
   flex: 1 1 90px;
   min-width: 90px;
-  
-  /* 패딩: 좌측에 핸들 공간(24px)을 확보하고, 우측은 균형을 위해 동일하게 줌 */
   padding: 0.45em 0.55em 0.45em 24px;
-  
   border: 1px solid var(--border-color);
   background: #1b222d;
-  color: #fff !important;      /* 기본 상태도 흰색 */
+  color: #fff !important;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 700;
   font-size: 0.95em;
-  
   display: inline-flex; 
   align-items: center; 
-  justify-content: center; /* 텍스트 가로 중앙 정렬 */
-  
-  position: relative;      /* 핸들의 절대 위치 기준점 */
+  justify-content: center;
+  position: relative;
   transition: all 0.2s ease;
 }
 
@@ -486,26 +537,18 @@ input[type="checkbox"] { accent-color: var(--primary); }
 }
 
 .run-category-tab.active {
-  /* 활성화 배경 유지 */
   background: linear-gradient(120deg, var(--primary) 0%, #4eb5ff 100%);
-  
-  /* ★ 글씨색 수정: 검은색(#0b0f17) -> 흰색(#ffffff) */
-  color: #ffffff !important; 
-  
-  /* 흰색 글씨가 밝은 배경에서 잘 보이도록 그림자 추가 */
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4); 
-  
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
   border-color: var(--primary);
   box-shadow: 0 4px 14px rgba(0, 137, 235, 0.3);
 }
 
-/* 핸들: 좌측 끝에 고정 */
 .run-category-handle {
-  position: absolute;      /* 텍스트 흐름과 무관하게 고정 */
-  left: 6px;               /* 좌측 벽에서 약간 떨어짐 */
-  top: 50%;                /* 상하 중앙 */
-  transform: translateY(-50%); /* 정확한 수직 중앙 정렬 */
-  
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex; 
   align-items: center; 
   justify-content: center;
@@ -515,10 +558,18 @@ input[type="checkbox"] { accent-color: var(--primary); }
   cursor: grab;
 }
 
+.run-category-tab[data-category="ALL"] .run-category-handle {
+    display: none !important;
+}
+.run-category-tab[data-category="ALL"] {
+    padding-left: 0.55em !important;
+}
+
 .run-category-tab.active .run-category-handle {
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* --- Run List --- */
 .run-list { list-style: none; padding: 0; }
 
 .run-list li:first-child {
@@ -550,13 +601,15 @@ input[type="checkbox"] { accent-color: var(--primary); }
 
 .run-list li summary span {
   color: #ffffff !important;
-  font-weight: 600; 
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
   text-transform: capitalize; 
   flex-grow: 1;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-left:5px;
 }
 
 .run-list li summary button {
@@ -572,69 +625,154 @@ input[type="checkbox"] { accent-color: var(--primary); }
   flex-shrink: 0;
 }
 
+.run-list legend {
+    color: #ffffff !important; 
+    font-weight: 700;          
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+    margin-bottom: 0.5rem;     
+}
+
+.run-list li {
+    list-style: none !important; 
+}
+
+.run-list li details:not(:has(fieldset)) {
+    color: #ffffff !important;      
+    font-weight: 600;               
+    background: rgba(255, 255, 255, 0.05); 
+    padding: 1.5rem;                
+    margin: 0.5rem;                 
+    border-radius: 8px;             
+    text-align: center;             
+    font-style: italic;             
+    border: 1px dashed rgba(255, 255, 255, 0.15); 
+}
+
 .run-list li summary button:hover { transform: scale(1.05); }
 .run-list li summary button.remove-run { background: #c82333; color: #ebe4e4; }
 .run-list li summary button.add-run { background: #28a043; color: #ebe4e4; }
 
+.run-list li details[open] summary { border-bottom: 1px solid rgba(255,255,255,0.1); }
 
-
+/* --- Inventory Lock UI --- */
 .inventory-lock-box {
-  background: #222936;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.65rem 0.75rem;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-top: 0.5rem;
 }
 
-table.inventory-lock { width: 100%; border: none; margin: 0.35rem 0 0 0; background: transparent; }
-table.inventory-lock td { padding: 2px 4px; border: none; background: rgba(255,255,255,0.02); }
+table.inventory-lock {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4px;
+    table-layout: fixed;
+}
+
+table.inventory-lock td {
+    padding: 0;
+    background: transparent;
+    vertical-align: top;
+}
 
 table.inventory-lock input[type="checkbox"] {
-  width: 1.05rem; height: 1.05rem;
-  appearance: checkbox !important;
-  -webkit-appearance: checkbox !important;
-  background-color: #0f1117 !important;
-  border: 1px solid var(--border-color) !important;
-  border-radius: 4px !important;
-  cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 100%;      
+    height: 45px;     
+    margin: 0;
+    cursor: pointer;
+    background-color: #161d2a;
+    border: 1px solid #3a4352;
+    border-radius: 6px;
+    transition: all 0.2s;
+    position: relative; 
 }
 
 table.inventory-lock input[type="checkbox"]:checked {
-  background-color: var(--primary) !important;
-  border-color: var(--primary) !important;
+    background-color: #2c1f1f !important;
+    border-color: #dc3545 !important;
+    background-image: none !important;
+    box-shadow: inset 0 0 10px rgba(220, 53, 69, 0.3);
 }
 
+table.inventory-lock input[type="checkbox"]:checked::after {
+    content: "🔒";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.4rem;
+    line-height: 1;
+    color: #ff6b6b;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); 
+}
+
+table.inventory-lock input[type="checkbox"]:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: var(--primary);
+}
+
+/* --- Cube & Recipe Styles --- */
 .cube-options {
   background: #2a2f38;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 0.75rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
+  display: flex; flex-direction: column; gap: 0.8rem;
 }
 
-.cube-option-row { display: flex; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; }
-.cube-inline-input { align-items: center; justify-content: space-between; width: 100%; }
+.cube-option-row { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+
+.cube-inline-input {
+    display: flex; align-items: center; width: 100%; gap: 1rem;
+}
+.cube-inline-input .cube-jewel-input {
+    display: flex; align-items: center; flex-grow: 1; gap: 1rem; white-space: nowrap; margin-bottom: 0;
+}
+.cube-inline-input .cube-jewel-input input[type="number"] {
+    width: 100% !important; min-width: 80px; margin: 0; text-align: center;
+}
+.cube-inline-input span {
+    flex-shrink: 0; font-size: 0.8rem; color: var(--text-secondary); opacity: 0.6; font-style: italic;
+}
+
 .cube-hidden { visibility: hidden; opacity: 0; pointer-events: none; height: 0; overflow: hidden; }
 
-.recipe-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--spacing-sm); margin-top: var(--spacing-sm);
+.recipe-tab-nav {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);
+}
+.recipe-tab-btn {
+    flex: 1; background: #1b222d; border: 1px solid var(--border-color); color: var(--text-secondary);
+    padding: 0.6rem 0.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; margin: 0 !important;
+    display: flex; align-items: center; justify-content: center; text-align: center; min-width: 80px; 
+}
+.recipe-tab-btn:hover { background: #243042; color: #fff; border-color: var(--primary); }
+.recipe-tab-btn.active {
+    background: linear-gradient(120deg, var(--primary) 0%, #4eb5ff 100%);
+    color: #fff; border-color: var(--primary); box-shadow: 0 2px 8px rgba(0, 137, 235, 0.3);
+}
+
+.recipe-main-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    min-height: 200px; background: rgba(0, 0, 0, 0.2);
+    padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);
 }
 
 .recipe-item {
-  display: flex; align-items: center;
-  background: var(--bg-secondary);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--border-color); border-radius: var(--radius-md);
-  cursor: pointer; transition: all var(--transition-fast);
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.5rem;
+    border-radius: 4px; transition: background 0.2s; cursor: pointer; margin-bottom: 0 !important;
 }
+.recipe-item:hover { background: rgba(255, 255, 255, 0.05); }
+.recipe-item span { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.recipe-item:hover {
-  background: var(--bg-tertiary); border-color: var(--primary); transform: translateX(4px);
+.btn-toggle-all {
+    background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary);
+    font-size: 0.8rem; padding: 4px 12px; border-radius: 4px; cursor: pointer;
 }
-
-.recipe-item input[type="checkbox"] { margin-right: var(--spacing-sm); }
-.recipe-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.btn-toggle-all:hover { border-color: var(--primary); color: #fff; }
 
 .runeword-toolbar { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; margin-bottom: 0.5rem; }
 .runeword-toolbar input[type="text"] { height: 40px; padding: 0 0.75rem; }
@@ -693,234 +831,158 @@ table.inventory-lock input[type="checkbox"]:checked {
   border-left: 4px solid #7aa6ff; border-radius: 4px; margin-top: 1rem;
 }
 
-/* Terror Zone Table Styles by: aC */
-
 .tz-card {
-    margin-top: 1rem;
-    border-radius: 0.75rem;
-    overflow-x: auto;
-    background: #141824;
-    border: 1px solid #2a3145;
-    max-width: 100%;
+  margin-top: 1rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  border: 1px solid #2a3145;
+  max-width: 100%;
 }
 
 .tz-card-header {
-    padding: 0.75rem 1rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border-bottom: 1px solid #2a3145;
-    background: radial-gradient(circle at top left, #252b3b, #151824);
-    white-space: nowrap;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #2a3145;
+  background: radial-gradient(circle at top left, #252b3b, #151824);
+  white-space: nowrap;
+    color: #e3e8ff;
 }
 
-/* Table Layout */
 .tz-table {
-    width: 100%;
-    table-layout: auto;
-    border-collapse: collapse;
-    font-size: 0.83rem;
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  font-size: 0.83rem;
 }
 
 .tz-table thead th {
-    text-align: left;
-    padding: 0.4rem 0.6rem;
-    font-weight: 500;
-    color: #a7b3d0;
-    background: #1a1f2e;
-    border-bottom: 1px solid #2a3145;
-    white-space: nowrap;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  font-weight: 500;
+  color: #a7b3d0;
+  background: #1a1f2e;
+  border-bottom: 1px solid #2a3145;
+  white-space: nowrap;
 }
 
-/* Specific Column Widths */
 .tz-table thead th:nth-child(1),
-.tz-table tbody td.tz-checkbox-cell {
-    width: 30px;
-}
+.tz-table tbody td.tz-checkbox-cell { width: 30px; }
+.tz-table thead th:nth-child(2) { width: 140px; }
+.tz-table thead th:nth-child(3) { width: auto; }
+.tz-table thead th:nth-child(4) { width: 55px; text-align: left; }
+.tz-table td:nth-child(4) { text-align: left; }
+.tz-table thead th:nth-child(5) { width: 38px; text-align: left; }
 
-.tz-table thead th:nth-child(2) {
-    width: 140px;
-}
-
-.tz-table thead th:nth-child(3) {
-    width: auto;
-    /* let immunities expand */
-}
-
-/* Boss Packs header */
-.tz-table thead th:nth-child(4) {
-    width: 55px;
-    text-align: left;
-}
-
-/* Boss Packs data cells */
-.tz-table td:nth-child(4) {
-    text-align: left;
-}
-
-.tz-table thead th:nth-child(5) {
-    width: 38px;
-    text-align: left;
-}
-
-/* Data Cells */
 .tz-table tbody td {
-    padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid #20263a;
-    color: #e3e8ff;
-    vertical-align: middle;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #20263a;
+  color: #e3e8ff;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #2a2f38;
 }
 
-/* Allow Name column to wrap */
 .tz-table td:nth-child(2) {
-    white-space: normal;
-    font-size: 0.8rem;
-    line-height: 1.2;
+  white-space: normal;
+  font-size: 0.8rem;
+  line-height: 1.2;
 }
 
-/* Immunities */
 .tz-immunities {
-    white-space: nowrap;
-    overflow: hidden;
-    line-height: 1.2;
-    text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.2;
+  text-align: left;
 }
 
 .tz-immunities img,
 .tz-icon {
-    width: 14px;
-    height: 14px;
-    margin-right: 2px;
-    vertical-align: middle;
+  width: 14px;
+  height: 14px;
+  margin-right: 2px;
+  vertical-align: middle;
 }
 
 .tz-icon-disabled {
-    opacity: 0.25;
-    filter: grayscale(1);
+  opacity: 0.25;
+  filter: grayscale(1);
 }
 
-/* Tier styles */
 .tz-tier {
-    font-weight: 700;
-    white-space: nowrap;
-    text-align: center;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center;
 }
 
-/* Act Header Row */
 .tz-act-row td {
-    font-weight: 600;
-    font-size: 0.85rem;
-    background: #1f2537;
-    color: #cbd5e1;
-    padding: 0.4rem 0.6rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  background: #1f2537;
+  color: #cbd5e1;
+  padding: 0.4rem 0.6rem;
 }
 
-/* Spacers */
 .tz-act-spacer td {
-    padding: 0.3rem;
-    background: transparent;
+  padding: 0.3rem;
+  background: transparent;
 }
 
-.tz-row:nth-child(even) {
-    background: #171b29;
+.tz-row:nth-child(even) { background: #171b29; }
+.tz-row:nth-child(odd) { background: #141824; }
+.tz-row:hover { background: #20263a; }
+
+/* --- Terror Zone Skip Icons --- */
+.grid.tz-skip-icons {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap; 
+    gap: 1rem;
+    align-items: center;
+    justify-content: flex-start; 
+    margin-top: 0.5rem;
+    font-size: 0.85rem; 
 }
 
-.tz-row:nth-child(odd) {
-    background: #141824;
+.grid.tz-skip-icons label {
+    width: auto !important; 
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-bottom: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-secondary);
 }
 
-.tz-row:hover {
-    background: #20263a;
+.grid.tz-skip-icons label:hover {
+    color: #ffffff;
 }
+
+/* --- Inventory & Potions Spacing Fix --- */
+div[data-card-id="inventory-belt"] fieldset,
+div[data-card-id="inventory-potions"] fieldset {
+    margin-bottom: 0 !important; 
+}
+div[data-card-id="inventory-belt"] label,
+div[data-card-id="inventory-potions"] label {
+    margin-bottom: 0.5rem;
+}
+
 /* ========================================
    6. RESPONSIVE UTILS
    ======================================== */
 @media (max-width: 768px) {
   .tabs-navigation { flex-direction: column; }
   .tab-item { width: 100%; min-width: unset; }
-  
   .character-row-flex { flex-direction: column; gap: 0.5rem; }
   .character-row-flex label, .character-row-flex label:nth-child(3) { flex: 1; width: 100%; }
-  
   .recipe-grid { grid-template-columns: 1fr; }
   .sticky-bottom { padding: 0.5rem; }
   .time-range { flex-wrap: wrap; }
   .time-range input[type="time"] { width: 100%; }
-}
-
-/* 1. 헤더 레이아웃: 텍스트와 버튼을 양쪽 끝으로 배치 */
-.warning-card header {
-    display: flex;              /* 내부 요소를 가로로 배치 */
-    align-items: center;        /* 수직 중앙 정렬 */
-    justify-content: space-between; /* ★ 핵심: 텍스트는 왼쪽, 버튼은 오른쪽 끝으로 밈 */
-    padding: 0.5rem 0.2rem;     /* 위아래 여백 살짝 추가 */
-    background: transparent;    /* 배경 투명 */
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(255, 179, 71, 0.2); /* 헤더 아래 은은한 구분선 추가 */
-    padding-bottom: 0.8rem;
-}
-
-/* 2. 텍스트 왼쪽 여백 추가 */
-.warning-card header strong {
-    margin-left: 0.8rem;        /* 요청하신 왼쪽 여백 */
-    margin-top: 0.1rem;
-    color: #ff6b35;             /* 경고 텍스트 색상 (오렌지 레드) */
-    font-size: 1.1rem;
-    letter-spacing: 0.5px;
-}
-
-/* 3. 버튼 스타일 변경 (파란색 제거 -> 경고 테마 적용) */
-/* warning-toggle 클래스가 있거나, 헤더 안의 모든 버튼에 적용 */
-/* 3. 버튼 스타일 변경 (수직 중앙 정렬 강제 수정) */
-.warning-card header button,
-.warning-card header .warning-toggle {
-    margin-right: 1.5rem;       /* 우측 끝 여백 */
-    
-    /* ★ 핵심: 수직 정렬을 방해하는 요소 제거 */
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    height: auto;               /* 높이 자동 */
-    line-height: 1.2;           /* 줄 간격 조정 (텍스트 수직 중앙) */
-    display: inline-flex;       /* 내부 텍스트도 중앙 정렬 */
-    align-items: center;        
-    justify-content: center;
-
-    /* 스타일 리셋 및 커스텀 (경고 테마) */
-    background: rgba(255, 107, 53, 0.1); 
-    border: 1px solid #ff6b35;  
-    color: #ff6b35;             
-    
-    padding: 6px 12px;          /* 패딩을 위아래 동일하게 줌 */
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: none !important;
-}
-
-/* 마우스 올렸을 때 효과 */
-.warning-card header button:hover,
-.warning-card header .warning-toggle:hover {
-    background: #ff6b35;       
-    color: #2c2414;            
-    box-shadow: 0 0 10px rgba(255, 107, 53, 0.4) !important;
-    transform: translateY(-1px);
-}
-
-/* 버튼 마우스 올렸을 때 (Hover) */
-.warning-card header button:hover,
-.warning-card header .warning-toggle:hover {
-    background: #ff6b35;        /* 배경을 진한 오렌지로 채움 */
-    color: #2c2414;             /* 글자는 어둡게 (가독성) */
-    box-shadow: 0 0 10px rgba(255, 107, 53, 0.4) !important; /* 오렌지색 빛나는 효과 */
-    transform: translateY(-1px);
-}
-
-/* 버튼 클릭 시 (Active) */
-.warning-card header button:active,
-.warning-card header .warning-toggle:active {
-    transform: translateY(0);
-    opacity: 0.8;
+  div[data-card-id="connection-client"] fieldset:nth-of-type(2) {
+        grid-template-columns: 1fr;
+  }
 }

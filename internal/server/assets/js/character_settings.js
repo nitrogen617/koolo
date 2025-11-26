@@ -167,6 +167,7 @@ window.onload = function () {
     initializeTabs();
     initializeRunLists();
     initializeOtherFeatures();
+    organizeRecipes();
     setTimeout(ensureGameNamePasswordVisibility, 0);
     setTimeout(ensureGameNamePasswordVisibility, 100);
     setTimeout(ensureGameNamePasswordVisibility, 300);
@@ -986,4 +987,114 @@ function handleBossStaticThresholdChange() {
         value = 100;
     }
     input.value = value;
+}
+// ==================== CUBE RECIPES ORGANIZER (No Select All) ====================
+function organizeRecipes() {
+    const source = document.getElementById('hidden-recipe-source');
+    const navContainer = document.getElementById('recipe-tab-nav');
+    const gridContainer = document.getElementById('recipe-grid-container');
+    
+    // toggleBtn 관련 변수 및 로직 삭제됨
+
+    if (!source || !navContainer || !gridContainer) return;
+
+    const allItems = Array.from(source.querySelectorAll('.recipe-item'));
+
+    // 카테고리 정의
+    const categories = [
+        { id: 'all', title: 'All', items: allItems, keywords: [] },
+        { id: 'active', title: 'Active', items: [], keywords: [] },
+        { id: 'runes', title: 'Runes', items: [], keywords: ['Upgrade'] },
+        { id: 'crafting', title: 'Crafting', items: [], keywords: ['Caster', 'Blood', 'Safety', 'Hitpower'] },
+        { id: 'sockets', title: 'Sockets', items: [], keywords: ['Add Sockets'] },
+        { id: 'gems', title: 'Gems', items: [], keywords: ['Perfect'] },
+        { id: 'misc', title: 'Misc', items: [], keywords: [] }
+    ];
+
+    // 아이템 분류 로직
+    allItems.forEach(item => {
+        const name = item.getAttribute('data-name');
+        let placed = false;
+
+        for (let i = 2; i < categories.length - 1; i++) {
+            const cat = categories[i];
+            if (cat.keywords.some(k => name.includes(k))) {
+                cat.items.push(item);
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) {
+            categories[categories.length - 1].items.push(item);
+        }
+    });
+
+    // 탭 버튼 생성
+    navContainer.innerHTML = ''; 
+    let activeTabId = 'all';
+
+    categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'recipe-tab-btn';
+        btn.dataset.id = cat.id;
+        
+        updateButtonText(btn, cat);
+
+        if (cat.id === 'all') btn.classList.add('active');
+
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.recipe-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeTabId = cat.id;
+            
+            if (cat.id === 'active') {
+                const activeItems = allItems.filter(item => item.querySelector('input').checked);
+                renderGrid(activeItems);
+            } else {
+                renderGrid(cat.items);
+            }
+        });
+
+        navContainer.appendChild(btn);
+    });
+
+    // 그리드 렌더링 함수
+    function renderGrid(items) {
+        gridContainer.innerHTML = '';
+        if (items.length === 0) {
+            gridContainer.innerHTML = '<div style="color:gray; padding:20px; text-align:center; grid-column: 1/-1;">No items found.</div>';
+            return;
+        }
+        items.forEach(item => gridContainer.appendChild(item));
+    }
+
+    // 버튼 텍스트 업데이트 (Active 카운트용)
+    function updateButtonText(btn, cat) {
+        if (cat.id === 'active') {
+            const checkedCount = allItems.filter(i => i.querySelector('input').checked).length;
+            btn.textContent = `${cat.title} (${checkedCount})`;
+        } else {
+            btn.textContent = `${cat.title} (${cat.items.length})`;
+        }
+    }
+
+    // 체크박스 변경 감지 (Active 탭 숫자 업데이트)
+    gridContainer.addEventListener('change', (e) => {
+        if (e.target.matches('input[type="checkbox"]')) {
+            refreshActiveCount();
+        }
+    });
+
+    function refreshActiveCount() {
+        const activeBtn = navContainer.querySelector('.recipe-tab-btn[data-id="active"]');
+        if (activeBtn) {
+            const activeCat = categories.find(c => c.id === 'active');
+            updateButtonText(activeBtn, activeCat);
+        }
+    }
+
+    // 초기 렌더링
+    renderGrid(categories[0].items);
+    refreshActiveCount();
 }

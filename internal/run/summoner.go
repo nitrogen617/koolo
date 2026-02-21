@@ -3,6 +3,7 @@ package run
 import (
 	"errors"
 	"math"
+	"slices"
 
 	"github.com/hectorgimenez/d2go/pkg/data"
 	"github.com/hectorgimenez/d2go/pkg/data/area"
@@ -106,6 +107,18 @@ func (s Summoner) runStandard(parameters *RunParameters) error {
 	s.ctx.Logger.Info("Starting normal Summoner run (Quest/Key)")
 	isQuestRun := IsQuestRun(parameters)
 
+	// Quest-mode pre-check: if Arcane/Palace waypoint is missing in Lut Gholein,
+	// talk to Drognan once before attempting Arcane route.
+	if isQuestRun && s.ctx.Data.PlayerUnit.Area == area.LutGholein {
+		waypoints := s.ctx.Data.PlayerUnit.AvailableWaypoints
+		if !slices.Contains(waypoints, area.ArcaneSanctuary) ||
+			!slices.Contains(waypoints, area.PalaceCellarLevel1) {
+			if err := action.InteractNPC(npc.Drognan); err != nil {
+				s.ctx.Logger.Warn("Drognan pre-check interaction failed; continuing with waypoint flow", "error", err)
+			}
+		}
+	}
+
 	// Use the waypoint / Fire Eye portal to get to Arcane Sanctuary
 	if s.ctx.CharacterCfg.Game.Summoner.KillFireEye && !isQuestRun {
 		NewFireEye().Run(parameters) // same pattern as other quest runs
@@ -136,12 +149,18 @@ func (s Summoner) runStandard(parameters *RunParameters) error {
 		utils.Sleep(300)
 	} else {
 		if err := action.WayPoint(area.ArcaneSanctuary); err != nil {
-			return err
-		}
-
-		// This prevents us being blocked from getting into Palace
-		if s.ctx.Data.PlayerUnit.Area != area.ArcaneSanctuary && isQuestRun {
-			action.InteractNPC(npc.Drognan)
+			// On quest runs, try one Drognan interaction before giving up on Arcane waypoint.
+			if isQuestRun && s.ctx.Data.PlayerUnit.Area == area.LutGholein {
+				s.ctx.Logger.Warn("Waypoint to Arcane Sanctuary failed in quest mode, retrying after Drognan interaction", "error", err)
+				if dlgErr := action.InteractNPC(npc.Drognan); dlgErr != nil {
+					s.ctx.Logger.Warn("Drognan interaction failed during waypoint recovery", "error", dlgErr)
+				}
+				if retryErr := action.WayPoint(area.ArcaneSanctuary); retryErr != nil {
+					return retryErr
+				}
+			} else {
+				return err
+			}
 		}
 	}
 

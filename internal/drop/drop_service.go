@@ -18,6 +18,7 @@ type Service struct {
 }
 
 const persistentRequestTTL = 3 * time.Minute
+const queuedStartRequestTTL = 10 * time.Minute
 
 // Service constructor
 func NewService(logger *slog.Logger) *Service {
@@ -30,11 +31,12 @@ func NewService(logger *slog.Logger) *Service {
 
 // StartRequest: pending request to apply when supervisor is attached
 type StartRequest struct {
-	Room     string
-	Password string
-	Filter   Filters
-	CardID   int
-	CardName string
+	Room      string
+	Password  string
+	Filter    Filters
+	CardID    int
+	CardName  string
+	CreatedAt time.Time
 }
 
 // Attach a Manager for a supervisor
@@ -151,17 +153,35 @@ func (s *Service) QueueStartDrop(supervisor, room, password string, filter Filte
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.pruneQueuedStartLocked()
 
 	if s.queuedStart == nil {
 		s.queuedStart = make(map[string][]StartRequest)
 	}
 	s.queuedStart[supervisor] = append(s.queuedStart[supervisor], StartRequest{
-		Room:     room,
-		Password: password,
-		Filter:   filter,
-		CardID:   cardID,
-		CardName: cardName,
+		Room:      room,
+		Password:  password,
+		Filter:    filter,
+		CardID:    cardID,
+		CardName:  cardName,
+		CreatedAt: time.Now(),
 	})
+}
+
+// Clear queued start-Drop requests.
+// If supervisor is empty, all queued start requests are removed.
+func (s *Service) ClearQueuedStart(supervisor string) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if supervisor == "" {
+		s.queuedStart = make(map[string][]StartRequest)
+		return
+	}
+	delete(s.queuedStart, supervisor)
 }
 
 // Return and remove queued start-Drop request
@@ -171,6 +191,7 @@ func (s *Service) consumeQueuedStart(supervisor string) (StartRequest, bool) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.pruneQueuedStartLocked()
 
 	queue := s.queuedStart[supervisor]
 	if len(queue) == 0 {
@@ -189,6 +210,7 @@ func (s *Service) consumeQueuedStart(supervisor string) (StartRequest, bool) {
 func (s *Service) QueuedStartSnapshot() map[string][]StartRequest {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.pruneQueuedStartLocked()
 
 	result := make(map[string][]StartRequest, len(s.queuedStart))
 	for sup, queue := range s.queuedStart {
@@ -213,6 +235,24 @@ func (s *Service) pruneExpiredLocked() {
 			delete(s.persistentRequests, sup)
 		} else {
 			s.persistentRequests[sup] = keep
+		}
+	}
+}
+
+// pruneQueuedStartLocked removes queued-start requests older than the TTL; caller must hold s.mu.
+func (s *Service) pruneQueuedStartLocked() {
+	now := time.Now()
+	for sup, queue := range s.queuedStart {
+		keep := queue[:0]
+		for _, req := range queue {
+			if !req.CreatedAt.IsZero() && now.Sub(req.CreatedAt) < queuedStartRequestTTL {
+				keep = append(keep, req)
+			}
+		}
+		if len(keep) == 0 {
+			delete(s.queuedStart, sup)
+		} else {
+			s.queuedStart[sup] = keep
 		}
 	}
 }

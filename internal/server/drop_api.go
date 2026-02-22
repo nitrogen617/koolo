@@ -156,6 +156,7 @@ func (s *HttpServer) registerDropRoutes() {
 	http.HandleFunc("/api/Drop/batch", s.handleDropBatch)
 	http.HandleFunc("/api/Drop/start-Dropper", s.handleDropStartDropper)
 	http.HandleFunc("/api/Drop/cancel", s.handleDropCancel)
+	http.HandleFunc("/api/Drop/queue-clear", s.handleDropQueueClear)
 	http.HandleFunc("/api/Drop/protection", s.handleDropFilters)
 	http.HandleFunc("/api/Drop/filters", s.handleDropFilters)
 }
@@ -579,6 +580,29 @@ func (s *HttpServer) handleDropCancel(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
+}
+
+func (s *HttpServer) handleDropQueueClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	supervisor := strings.TrimSpace(r.URL.Query().Get("supervisor"))
+	if svc := s.manager.DropService(); svc != nil {
+		svc.ClearQueuedStart(supervisor)
+	}
+
+	if supervisor != "" {
+		s.setDropCardInfo(supervisor, 0, "")
+	} else {
+		s.DropMux.Lock()
+		s.DropCardInfo = make(map[string]dropCardInfo)
+		s.DropMux.Unlock()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "cleared"})
 }
 
 func (s *HttpServer) handleDropFilters(w http.ResponseWriter, r *http.Request) {

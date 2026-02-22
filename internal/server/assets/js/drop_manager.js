@@ -471,6 +471,7 @@ const API = {
 
   batchDrop: (payload) => API.req("/api/Drop/batch", { method: "POST", body: payload }),
   cancelDrop: (supervisor) => API.req("/api/Drop/cancel", { method: "POST", body: { supervisor } }),
+  clearQueue: () => API.req("/api/Drop/queue-clear", { method: "POST", errorMsg: "Failed to clear server queue" }),
   applyFilter: (sup, payload) => API.req(`/api/Drop/protection?supervisor=${encodeURIComponent(sup)}`, { method: "POST", body: payload }),
   startDropper: (sup, body) => API.req(`/api/Drop/start-Dropper?supervisor=${encodeURIComponent(sup)}`, { method: "POST", body }),
   startSupervisor: (name) => fetch(`/start?characterName=${encodeURIComponent(name)}`)
@@ -1094,7 +1095,15 @@ document.addEventListener("DOMContentLoaded", () => {
   bind("dm-request-cards", "click", Handlers.submitAllCards);
   bind("dm-open-queue", "click", () => { State.queueModalOpen = true; UI.renderQueue(); $.get("dm-queue-modal").style.display = "flex"; });
   bind("dm-queue-close", "click", () => { State.queueModalOpen = false; $.get("dm-queue-modal").style.display = "none"; });
-  bind("dm-queue-clear", "click", () => { State.queueArchive = []; UI.renderQueue(); });
+  bind("dm-queue-clear", "click", () => {
+    API.clearQueue()
+      .then(() => {
+        State.queueArchive = [];
+        UI.renderQueue();
+        API.getStatus();
+      })
+      .catch(e => $.toast(e.message, "error"));
+  });
   bind("dm-history-clear", "click", () => { State.historyCache = []; State.saveHistory(); UI.renderHistory(); });
   
   bind("dm-card-filter-close", "click", () => $.get("dm-card-filter-modal").style.display = "none");

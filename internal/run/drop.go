@@ -303,105 +303,120 @@ func (d Drop) dropStashItems(ctx *context.Status) (int, error) {
 	if sharedPages == 0 {
 		sharedPages = 3 // Fallback
 	}
-	stashTabs := make([]int, 1+sharedPages)
-	stashTabs[0] = 1 // Personal tab
-	for i := 0; i < sharedPages; i++ {
-		stashTabs[i+1] = i + 2 // Shared tabs start at 2
-	}
+	stashTabs := d.buildStashTabsForRequest(ctx, sharedPages)
 
 	startTime := time.Now()
 	for pass := 0; pass < maxPasses; pass++ {
 		if time.Since(startTime) > maxTotalTime {
-			ctx.Logger.Warn("Drop: timeout reached after processing", "elapsed", time.Since(startTime))
-			break
+			return totalItemsDroppered, fmt.Errorf("Drop: timeout reached after processing (%s)", time.Since(startTime))
 		}
 		ctx.Logger.Debug("Drop: stash pass", "pass", pass+1)
 		movedItems := false
 
 		for _, tab := range stashTabs {
-			ctx.Logger.Debug("Drop: preparing stash tab before processing", "tab", tab)
-			if err := d.ensureStashTabReady(ctx, tab); err != nil {
-				ctx.Logger.Error("Drop: failed to prepare stash tab", "tab", tab, "error", err)
-				continue
-			}
-			ctx.Logger.Debug("Drop: stash tab ready", "tab", tab, "stashOpen", ctx.Data.OpenMenus.Stash)
+			for {
+				if time.Since(startTime) > maxTotalTime {
+					return totalItemsDroppered, fmt.Errorf("Drop: timeout reached after processing (%s)", time.Since(startTime))
+				}
+				ctx.Logger.Debug("Drop: preparing stash tab before processing", "tab", tab)
+				if err := d.ensureStashTabReady(ctx, tab); err != nil {
+					ctx.Logger.Error("Drop: failed to prepare stash tab", "tab", tab, "error", err)
+					break
+				}
+				ctx.Logger.Debug("Drop: stash tab ready", "tab", tab, "stashOpen", ctx.Data.OpenMenus.Stash)
 
-			Dropperables := d.collectDropperablesForTab(ctx, tab, quotaTracker)
-			if len(Dropperables) == 0 {
-				ctx.Logger.Debug("Drop: no Dropperables on tab", "tab", tab)
-				continue
-			}
+				Dropperables := d.collectDropperablesForTab(ctx, tab, quotaTracker)
+				if len(Dropperables) == 0 {
+					ctx.Logger.Debug("Drop: no Dropperables on tab", "tab", tab)
+					break
+				}
 
-			ctx.Logger.Debug("Drop: moving Dropperables from tab", "tab", tab, "count", len(Dropperables))
+				ctx.Logger.Debug("Drop: moving Dropperables from tab", "tab", tab, "count", len(Dropperables))
 
-			queue := append([]data.Item(nil), Dropperables...)
-			attempts := make(map[data.UnitID]int, len(Dropperables))
+				queue := append([]data.Item(nil), Dropperables...)
+				attempts := make(map[data.UnitID]int, len(Dropperables))
+				movedFromTab := false
 
-			// Refresh once before processing all items (Mule.go pattern)
-			ctx.RefreshGameData()
+				// Refresh once before processing all items (Mule.go pattern)
+				ctx.RefreshGameData()
 
-			for len(queue) > 0 {
-				it := queue[0]
-				queue = queue[1:]
+				for len(queue) > 0 {
+					it := queue[0]
+					queue = queue[1:]
 
-				_, found := findInventorySpace(ctx, it)
-				if !found {
-					dropped, err := d.dropInventoryDropperables(ctx, tab, quotaTracker)
-					if err != nil {
-						return totalItemsDroppered, err
+					_, found := findInventorySpace(ctx, it)
+					if !found {
+						dropped, err := d.dropInventoryDropperables(ctx, tab, quotaTracker)
+						if err != nil {
+							return totalItemsDroppered, err
+						}
+						totalItemsDroppered += dropped
+						if dropped > 0 {
+							movedFromTab = true
+							movedItems = true
+						}
+						if d.DropRequestSatisfied(quotaTracker) {
+							ctx.Logger.Debug("Drop: requested quotas satisfied while freeing inventory space")
+							return totalItemsDroppered, nil
+						}
+
+						if _, found = findInventorySpace(ctx, it); !found {
+							attempts[it.UnitID]++
+							if attempts[it.UnitID] < maxItemRetries {
+								queue = append(queue, it)
+								ctx.Logger.Debug("Drop: re-queueing item due to lack of space", "item", it.Name, "attempt", attempts[it.UnitID])
+								continue
+							}
+
+							ctx.Logger.Warn("Drop: inventory still full after drop, skipping item", "item", it.Name)
+							if quotaTracker != nil {
+								quotaTracker.release(string(it.Name), d.reservedQuantityForItem(it))
+							}
+							continue
+						}
 					}
-					totalItemsDroppered += dropped
-					if d.DropRequestSatisfied(quotaTracker) {
-						ctx.Logger.Debug("Drop: requested quotas satisfied while freeing inventory space")
-						return totalItemsDroppered, nil
-					}
 
-					if _, found = findInventorySpace(ctx, it); !found {
+					if _, ok := d.moveStashItemToInventory(ctx, it); ok {
+						movedFromTab = true
+						movedItems = true
+					} else {
 						attempts[it.UnitID]++
 						if attempts[it.UnitID] < maxItemRetries {
 							queue = append(queue, it)
-							ctx.Logger.Debug("Drop: re-queueing item due to lack of space", "item", it.Name, "attempt", attempts[it.UnitID])
+							ctx.Logger.Debug("Drop: re-queueing item after failed move", "item", it.Name, "attempt", attempts[it.UnitID])
 							continue
 						}
 
-						ctx.Logger.Warn("Drop: inventory still full after drop, skipping item", "item", it.Name)
+						ctx.Logger.Warn("Drop: unable to move item from stash", "item", it.Name)
 						if quotaTracker != nil {
-							quotaTracker.release(string(it.Name))
+							quotaTracker.release(string(it.Name), d.reservedQuantityForItem(it))
 						}
-						continue
 					}
 				}
+				// Refresh after queue completes (Mule.go pattern)
+				ctx.RefreshGameData()
 
-				if _, ok := d.moveStashItemToInventory(ctx, it); ok {
+				dropped, err := d.dropInventoryDropperables(ctx, tab, quotaTracker)
+				if err != nil {
+					return totalItemsDroppered, err
+				}
+				totalItemsDroppered += dropped
+				if dropped > 0 {
+					movedFromTab = true
 					movedItems = true
-				} else {
-					attempts[it.UnitID]++
-					if attempts[it.UnitID] < maxItemRetries {
-						queue = append(queue, it)
-						ctx.Logger.Debug("Drop: re-queueing item after failed move", "item", it.Name, "attempt", attempts[it.UnitID])
-						continue
-					}
-
-					ctx.Logger.Warn("Drop: unable to move item from stash", "item", it.Name)
-					if quotaTracker != nil {
-						quotaTracker.release(string(it.Name))
-					}
 				}
-			}
-			// Refresh after queue completes (Mule.go pattern)
-			ctx.RefreshGameData()
+				if d.DropRequestSatisfied(quotaTracker) {
+					ctx.Logger.Debug("Drop: requested quotas satisfied after dropping items", "tab", tab)
+					return totalItemsDroppered, nil
+				}
+				if err := step.OpenInventory(); err != nil {
+					return totalItemsDroppered, fmt.Errorf("Drop: failed to reopen inventory after dropping items: %w", err)
+				}
 
-			dropped, err := d.dropInventoryDropperables(ctx, tab, quotaTracker)
-			if err != nil {
-				return totalItemsDroppered, err
-			}
-			totalItemsDroppered += dropped
-			if d.DropRequestSatisfied(quotaTracker) {
-				ctx.Logger.Debug("Drop: requested quotas satisfied after dropping items", "tab", tab)
-				return totalItemsDroppered, nil
-			}
-			if err := step.OpenInventory(); err != nil {
-				return totalItemsDroppered, fmt.Errorf("Drop: failed to reopen inventory after dropping items: %w", err)
+				if !movedFromTab {
+					ctx.Logger.Debug("Drop: no progress on tab; moving to next tab", "tab", tab)
+					break
+				}
 			}
 		}
 		if !movedItems {
@@ -450,7 +465,7 @@ func (d Drop) moveStashItemToInventory(ctx *context.Status, it data.Item) (data.
 		return it, true
 	}
 
-	for _, stashItem := range ctx.Data.Inventory.ByLocation(item.LocationStash, item.LocationSharedStash) {
+	for _, stashItem := range action.FilterDLCGhostItems(ctx.Data.Inventory.ByLocation(d.stashSearchLocations(ctx)...)) {
 		if stashItem.UnitID == it.UnitID {
 			ctx.Logger.Debug("Drop: item still present in stash after move attempt", "item", it.Name)
 			return it, false
@@ -493,14 +508,15 @@ func (d Drop) dropInventoryDropperables(ctx *context.Status, reopenTab int, quot
 		screenPos := ui.GetScreenCoordsForItem(it)
 		ctx.HID.ClickWithModifier(game.LeftButton, screenPos.X, screenPos.Y, game.CtrlKey)
 		utils.PingSleep(utils.Medium, 100)
-		dropped++
+		dropQty := d.droppedQuantityForItem(it)
+		dropped += dropQty
 		// Count this item towards Drop quotas
 		if ctx.Drop != nil {
-			ctx.Drop.RecordDropperedItem(string(it.Name))
+			ctx.Drop.RecordDropperedItem(string(it.Name), dropQty)
 		}
 		logDropQuotaProgress(ctx, "dropped-from-inventory", it)
 		if quotas != nil {
-			quotas.markDroppered(string(it.Name))
+			quotas.markDroppered(string(it.Name), dropQty)
 		}
 	}
 
@@ -533,7 +549,7 @@ func (d Drop) dropInventoryDropperables(ctx *context.Status, reopenTab int, quot
 }
 
 func (d Drop) collectDropperablesForTab(ctx *context.Status, tab int, quotas *DropQuotaTracker) []data.Item {
-	stashItems := ctx.Data.Inventory.ByLocation(item.LocationStash, item.LocationSharedStash)
+	stashItems := action.FilterDLCGhostItems(ctx.Data.Inventory.ByLocation(d.stashSearchLocations(ctx)...))
 	Dropperables := make([]data.Item, 0, len(stashItems))
 
 	for _, it := range stashItems {
@@ -541,26 +557,145 @@ func (d Drop) collectDropperablesForTab(ctx *context.Status, tab int, quotas *Dr
 			continue
 		}
 
-		if d.itemBelongsToTab(it, tab) {
+		if d.itemBelongsToTab(ctx, it, tab) {
 			itemName := string(it.Name)
-			if quotas != nil && !quotas.reserve(itemName) {
-				continue
+			copies := d.queueCopiesForItem(it)
+			for i := 0; i < copies; i++ {
+				if quotas != nil && !quotas.reserve(itemName, d.reservedQuantityForItem(it)) {
+					break
+				}
+				Dropperables = append(Dropperables, it)
 			}
-			Dropperables = append(Dropperables, it)
 		}
 	}
 
 	return Dropperables
 }
 
-func (d Drop) itemBelongsToTab(it data.Item, tab int) bool {
+func (d Drop) buildStashTabsForRequest(ctx *context.Status, sharedPages int) []int {
+	defaultTabs := make([]int, 1+sharedPages)
+	defaultTabs[0] = 1 // Personal tab
+	for i := 0; i < sharedPages; i++ {
+		defaultTabs[i+1] = i + 2 // Shared tabs start at 2
+	}
+	if !ctx.Data.IsDLC() {
+		return defaultTabs
+	}
+	defaultTabs = append(defaultTabs, action.StashTabMaterials, action.StashTabGems, action.StashTabRunes)
+
+	if ctx.Drop == nil || !ctx.Drop.DropFiltersEnabled() || !ctx.Drop.DropperOnlySelected() {
+		return defaultTabs
+	}
+	active := ctx.Drop.Active()
+	if active == nil {
+		return defaultTabs
+	}
+
+	f := active.Filters
+	needGeneral := len(f.CustomItems) > 0 || len(f.AllowedQualities) > 0
+	needMaterials := len(f.SelectedKeyTokens) > 0
+	needGems := len(f.SelectedGems) > 0
+	needRunes := len(f.SelectedRunes) > 0
+
+	targetedTabs := make([]int, 0, 1+sharedPages+3)
+	appendUnique := func(tab int) {
+		for _, t := range targetedTabs {
+			if t == tab {
+				return
+			}
+		}
+		targetedTabs = append(targetedTabs, tab)
+	}
+
+	// DLC specialized tabs are checked first for selected/custom requests.
+	// If quotas are unlimited or not fully satisfied there, we fall back to
+	// personal/shared tabs later in this request pass.
+	if needGeneral || needMaterials {
+		appendUnique(action.StashTabMaterials)
+	}
+	if needGeneral || needGems {
+		appendUnique(action.StashTabGems)
+	}
+	if needGeneral || needRunes {
+		appendUnique(action.StashTabRunes)
+	}
+
+	if needGeneral || needMaterials || needGems || needRunes {
+		appendUnique(1)
+		for i := 0; i < sharedPages; i++ {
+			appendUnique(i + 2)
+		}
+	}
+
+	if len(targetedTabs) == 0 {
+		return defaultTabs
+	}
+
+	ctx.Logger.Debug("Drop: using targeted stash tabs from request", "tabs", targetedTabs)
+	return targetedTabs
+}
+
+func (d Drop) itemBelongsToTab(_ *context.Status, it data.Item, tab int) bool {
+	return d.locationMatchesTab(it, tab)
+}
+
+func (d Drop) locationMatchesTab(it data.Item, tab int) bool {
 	switch it.Location.LocationType {
 	case item.LocationStash:
 		return tab == 1
 	case item.LocationSharedStash:
 		return tab == it.Location.Page+1
+	case item.LocationGemsTab:
+		return tab == action.StashTabGems
+	case item.LocationMaterialsTab:
+		return tab == action.StashTabMaterials
+	case item.LocationRunesTab:
+		return tab == action.StashTabRunes
 	default:
 		return false
+	}
+}
+
+func (d Drop) stashSearchLocations(ctx *context.Status) []item.LocationType {
+	locations := []item.LocationType{item.LocationStash, item.LocationSharedStash}
+	if ctx != nil && ctx.Data.IsDLC() {
+		locations = append(locations, item.LocationMaterialsTab, item.LocationGemsTab, item.LocationRunesTab)
+	}
+	return locations
+}
+
+func (d Drop) reservedQuantityForItem(it data.Item) int {
+	switch it.Location.LocationType {
+	case item.LocationGemsTab, item.LocationMaterialsTab, item.LocationRunesTab:
+		// Ctrl+click from DLC stash tabs moves one unit into inventory per action.
+		return 1
+	default:
+		qty := action.GetItemQuantity(it)
+		if qty <= 0 {
+			return 1
+		}
+		return qty
+	}
+}
+
+func (d Drop) droppedQuantityForItem(it data.Item) int {
+	qty := action.GetItemQuantity(it)
+	if qty <= 0 {
+		return 1
+	}
+	return qty
+}
+
+func (d Drop) queueCopiesForItem(it data.Item) int {
+	switch it.Location.LocationType {
+	case item.LocationGemsTab, item.LocationMaterialsTab, item.LocationRunesTab:
+		qty := action.GetItemQuantity(it)
+		if qty <= 0 {
+			return 1
+		}
+		return qty
+	default:
+		return 1
 	}
 }
 
@@ -581,12 +716,15 @@ func newDropQuotaTracker(ctx *context.Status) *DropQuotaTracker {
 	}
 }
 
-func (t *DropQuotaTracker) reserve(name string) bool {
+func (t *DropQuotaTracker) reserve(name string, qty int) bool {
 	if t == nil {
 		return true
 	}
 	if t.ctx.Drop == nil {
 		return true
+	}
+	if qty <= 0 {
+		qty = 1
 	}
 	limit := t.ctx.Drop.GetDropItemQuantity(name)
 	if limit <= 0 {
@@ -594,25 +732,31 @@ func (t *DropQuotaTracker) reserve(name string) bool {
 	}
 	key := strings.ToLower(name)
 	Droppered := t.ctx.Drop.GetDropperedItemCount(name)
-	if Droppered+t.reserved[key] >= limit {
+	if Droppered+t.reserved[key]+qty > limit {
 		return false
 	}
-	t.reserved[key]++
+	t.reserved[key] += qty
 	return true
 }
 
-func (t *DropQuotaTracker) release(name string) {
+func (t *DropQuotaTracker) release(name string, qty int) {
 	if t == nil {
 		return
 	}
+	if qty <= 0 {
+		qty = 1
+	}
 	key := strings.ToLower(name)
 	if t.reserved[key] > 0 {
-		t.reserved[key]--
+		t.reserved[key] -= qty
+		if t.reserved[key] < 0 {
+			t.reserved[key] = 0
+		}
 	}
 }
 
-func (t *DropQuotaTracker) markDroppered(name string) {
-	t.release(name)
+func (t *DropQuotaTracker) markDroppered(name string, qty int) {
+	t.release(name, qty)
 }
 
 func (t *DropQuotaTracker) fulfilled() bool {

@@ -199,11 +199,11 @@ func (m *Manager) ResetDropperedItemCounts() {
 }
 
 // RecordDropperedItem increments the Droppered count for the given item.
-func (m *Manager) RecordDropperedItem(name string) {
+func (m *Manager) RecordDropperedItem(name string, qty int) {
 	if m == nil || m.filters == nil {
 		return
 	}
-	m.filters.RecordDropperedItem(name)
+	m.filters.RecordDropperedItem(name, qty)
 }
 
 // GetDropperedItemCount returns how many of the given item have been Droppered so far.

@@ -206,15 +206,18 @@ func (s *ContextFilters) ResetDropperedItemCounts() {
 }
 
 // RecordDropperedItem increments the Droppered count used for quota tracking.
-func (s *ContextFilters) RecordDropperedItem(name string) {
+func (s *ContextFilters) RecordDropperedItem(name string, qty int) {
 	key := strings.ToLower(name)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if qty <= 0 {
+		qty = 1
+	}
 	if maxQty := s.filters.GetItemQuantity(name); maxQty > 0 {
 		if s.Droppered == nil {
 			s.Droppered = make(map[string]int)
 		}
-		s.Droppered[key] = s.Droppered[key] + 1
+		s.Droppered[key] = s.Droppered[key] + qty
 	}
 }
 

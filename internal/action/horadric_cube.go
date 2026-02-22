@@ -136,7 +136,7 @@ func CubeAddItems(items ...data.Item) error {
 				slog.String("Item", string(itm.Name)),
 				slog.Int("UnitID", int(itm.UnitID)),
 			)
-			continue
+			return fmt.Errorf("failed to find item %s in inventory before adding to cube", itm.Name)
 		}
 
 		ctx.Logger.Debug("Moving Item to the Horadric Cube",
@@ -149,6 +149,12 @@ func CubeAddItems(items ...data.Item) error {
 		screenPos := ui.GetScreenCoordsForItem(*found)
 		ctx.HID.ClickWithModifier(game.LeftButton, screenPos.X, screenPos.Y, game.CtrlKey)
 		utils.Sleep(500)
+	}
+
+	ctx.RefreshGameData()
+	cubeItems := ctx.Data.Inventory.ByLocation(item.LocationCube)
+	if len(cubeItems) < len(items) {
+		return fmt.Errorf("failed to add all items to cube: expected %d, got %d", len(items), len(cubeItems))
 	}
 
 	return nil
@@ -263,7 +269,11 @@ func ensureCubeIsOpen() error {
 			}
 		}
 
-		SwitchStashTab(cube.Location.Page + 1)
+		if cube.Location.LocationType == item.LocationSharedStash {
+			SwitchStashTab(cube.Location.Page + 1)
+		} else {
+			SwitchStashTab(1)
+		}
 	}
 
 	screenPos := ui.GetScreenCoordsForItem(cube)

@@ -505,11 +505,15 @@ func buildExcludedRunewordUnitIDs(target data.Item, recipe Runeword) map[data.Un
 
 // hasRunesForReroll ensures stash/inventory has the Hel rune for unsocketing plus everything needed to rebuild the recipe.
 func hasRunesForReroll(ctx *context.Status, recipe Runeword) bool {
-	items := ctx.Data.Inventory.ByLocation(
+	runeLocations := []item.LocationType{
 		item.LocationInventory,
 		item.LocationStash,
 		item.LocationSharedStash,
-	)
+	}
+	if ctx.Data.IsDLC() {
+		runeLocations = append(runeLocations, item.LocationRunesTab)
+	}
+	items := FilterDLCGhostItems(ctx.Data.Inventory.ByLocation(runeLocations...))
 
 	ctx.Logger.Debug("Runeword reroll: checking rune availability for reroll",
 		"runeword", string(recipe.Name))
@@ -526,7 +530,11 @@ func hasRunesForReroll(ctx *context.Status, recipe Runeword) bool {
 		// Runes show up in-game as items with names ending in "Rune".
 		name := string(itm.Name)
 		if strings.HasSuffix(name, "Rune") {
-			available[name]++
+			qty := isDLCStackedQuantity(itm)
+			if qty <= 0 {
+				continue
+			}
+			available[name] += qty
 		}
 	}
 
@@ -611,49 +619,81 @@ func ensureLooseTownPortalScroll() (data.Item, bool) {
 	return data.Item{}, false
 }
 
-// unsocketRuneword runs the (item + Hel + TP scroll) cube recipe after the caller decides a reroll is needed.
-func unsocketRuneword(itm data.Item) (bool, string) {
+func unsocketItemWithHelAndScroll(itm data.Item, logPrefix string, itemLabel string, logFields ...any) (bool, string) {
 	ctx := context.Get()
 
-	// Find a Hel rune for unsocketing
-	helRune, foundHel := ctx.Data.Inventory.Find("HelRune",
+	helRuneLocations := []item.LocationType{
 		item.LocationInventory,
 		item.LocationStash,
 		item.LocationSharedStash,
-	)
+	}
+	if ctx.Data.IsDLC() {
+		helRuneLocations = append(helRuneLocations, item.LocationRunesTab)
+	}
+	helRune, foundHel := ctx.Data.Inventory.Find("HelRune", helRuneLocations...)
 	if !foundHel {
-		ctx.Logger.Warn("Runeword reroll: cannot unsocket runeword; no Hel rune found")
+		ctx.Logger.Warn(fmt.Sprintf("%s: cannot unsocket %s; no Hel rune found", logPrefix, itemLabel))
 		return false, "No Hel rune"
 	}
 
-	// Grab a loose Scroll of Town Portal (tomes eat the extra scroll otherwise).
 	scroll, foundScroll := ensureLooseTownPortalScroll()
 	if !foundScroll {
-		ctx.Logger.Warn("Runeword reroll: cannot unsocket runeword; no loose TP scroll available")
+		ctx.Logger.Warn(fmt.Sprintf("%s: cannot unsocket %s; no loose TP scroll available", logPrefix, itemLabel))
 		return false, "No loose TP scroll"
 	}
 
-	ctx.Logger.Info("Runeword reroll: attempting to unsocket runeword",
-		"itemName", string(itm.Name),
-		"runewordName", string(itm.RunewordName),
-	)
+	ctx.Logger.Info(fmt.Sprintf("%s: attempting to unsocket %s", logPrefix, itemLabel), logFields...)
 
-	// Kick off the cube recipe.
 	if err := CubeAddItems(itm, helRune, scroll); err != nil {
-		ctx.Logger.Warn("Runeword reroll: failed to add items to cube for unsocket",
+		ctx.Logger.Warn(fmt.Sprintf("%s: failed to add items to cube for unsocket", logPrefix),
 			"error", err,
 		)
 		return false, "Failed to add to cube"
 	}
 
 	if err := CubeTransmute(); err != nil {
-		ctx.Logger.Warn("Runeword reroll: cube transmute failed while unsocketing runeword",
+		ctx.Logger.Warn(fmt.Sprintf("%s: cube transmute failed while unsocketing %s", logPrefix, itemLabel),
 			"error", err,
 		)
 		return false, "Cube transmute failed"
 	}
 
-	ctx.Logger.Info("Runeword reroll: successfully unsocketed runeword item")
+	ctx.RefreshGameData()
+	updatedItem, foundUpdated := ctx.Data.Inventory.FindByID(itm.UnitID)
+	if !foundUpdated {
+		ctx.Logger.Warn(fmt.Sprintf("%s: cannot verify unsocket result for %s; item not found after transmute", logPrefix, itemLabel))
+		return false, "Item not found after transmute"
+	}
+	if updatedItem.HasSocketedItems() {
+		ctx.Logger.Warn(fmt.Sprintf("%s: unsocket verification failed for %s; item still has socketed content", logPrefix, itemLabel),
+			"item", updatedItem.Name,
+			"socketedCount", len(updatedItem.GetSocketedItems()),
+		)
+		return false, "Item still socketed after transmute"
+	}
+	if itm.IsRuneword && updatedItem.IsRuneword {
+		ctx.Logger.Warn(fmt.Sprintf("%s: unsocket verification failed for %s; item is still a runeword", logPrefix, itemLabel),
+			"item", updatedItem.Name,
+			"runeword", updatedItem.RunewordName,
+		)
+		return false, "Item still runeword after transmute"
+	}
+
+	ctx.Logger.Info(fmt.Sprintf("%s: successfully unsocketed %s item", logPrefix, itemLabel))
+	return true, ""
+}
+
+// unsocketRuneword runs the (item + Hel + TP scroll) cube recipe after the caller decides a reroll is needed.
+func unsocketRuneword(itm data.Item) (bool, string) {
+	ctx := context.Get()
+
+	success, failureReason := unsocketItemWithHelAndScroll(itm, "Runeword reroll", "runeword",
+		"itemName", string(itm.Name),
+		"runewordName", string(itm.RunewordName),
+	)
+	if !success {
+		return false, failureReason
+	}
 
 	// Refresh inventory and immediately hand control back to the maker so it can rebuild the item.
 	ctx.RefreshGameData()

@@ -6,6 +6,7 @@
 /stats
 /screenshots
 /logs
+/dev/
 
 /config/*
 !/config/template

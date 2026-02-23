@@ -130,6 +130,10 @@ func PreRun(firstRun bool) error {
 
 	if ctx.CharacterCfg.Game.Leveling.AutoEquip && isLevelingChar {
 		AutoEquip()
+		step.CloseAllMenus()
+	}
+	if isLevelingChar {
+		TryBuyLevelingBelt()
 	}
 
 	// Stash before vendor
@@ -138,11 +142,18 @@ func PreRun(firstRun bool) error {
 	// Refill pots, sell, buy etc
 	VendorRefill(VendorRefillOpts{SellJunk: true, BuyConsumables: true})
 
+	if isLevelingChar {
+		TryBuyAndConsumeStaminaPots()
+	}
+
 	// Gamble
 	Gamble()
 
 	// Stash again if needed
 	Stash(false)
+	if isLevelingChar {
+		TrySocketLevelingGems()
+	}
 
 	if ctx.CharacterCfg.CubeRecipes.PrioritizeRunewords {
 		MakeRunewords()
@@ -193,6 +204,7 @@ func PreRun(firstRun bool) error {
 	HealAtNPC()
 	ReviveMerc()
 	HireMerc()
+	TryBuyAndConsumeStaminaPots()
 
 	return RepairTownRoutine()
 }
@@ -230,17 +242,26 @@ func InRunReturnTownRoutine() error {
 	_, isLevelingChar := ctx.Char.(context.LevelingCharacter)
 	if ctx.CharacterCfg.Game.Leveling.AutoEquip && isLevelingChar {
 		AutoEquip()
+		step.CloseAllMenus()
 		ctx.PauseIfNotPriority() // Check after AutoEquip
 	}
 
 	VendorRefill(VendorRefillOpts{SellJunk: true, BuyConsumables: true})
 	ctx.PauseIfNotPriority() // Check after VendorRefill
+	if isLevelingChar {
+		TryBuyAndConsumeStaminaPots()
+		ctx.PauseIfNotPriority() // Check after TryBuyAndConsumeStaminaPots
+	}
 	Stash(false)
 	ctx.PauseIfNotPriority() // Check after Stash
 	Gamble()
 	ctx.PauseIfNotPriority() // Check after Gamble
 	Stash(false)
 	ctx.PauseIfNotPriority() // Check after Stash
+	if isLevelingChar {
+		TrySocketLevelingGems()
+		ctx.PauseIfNotPriority()
+	}
 	if ctx.CharacterCfg.CubeRecipes.PrioritizeRunewords {
 		MakeRunewords()
 		// Do not reroll runewords while running the leveling sequences.
@@ -305,6 +326,8 @@ func InRunReturnTownRoutine() error {
 	ctx.PauseIfNotPriority() // Check after ReviveMerc
 	HireMerc()
 	ctx.PauseIfNotPriority() // Check after HireMerc
+	TryBuyAndConsumeStaminaPots()
+	ctx.PauseIfNotPriority() // Check after TryBuyAndConsumeStaminaPots
 	if err := RepairTownRoutine(); err != nil {
 		return err
 	}

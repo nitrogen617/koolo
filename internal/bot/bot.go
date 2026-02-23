@@ -93,6 +93,7 @@ func (b *Bot) Run(ctx context.Context, firstRun bool, runs []run.Run) error {
 	gameStartedAt := time.Now()
 	b.ctx.SwitchPriority(botCtx.PriorityNormal) // Restore priority to normal, in case it was stopped in previous game
 	b.ctx.CurrentGame = botCtx.NewGameHelper()  // Reset current game helper structure
+	action.ResetStaminaCooldown(b.ctx)          // Reset per-game stamina cooldown
 	// Drop: Initialize Drop manager and start watch context
 	if b.ctx.Drop == nil {
 		b.ctx.Drop = drop.NewManager(b.ctx.Name, b.ctx.Logger)
@@ -108,6 +109,7 @@ func (b *Bot) Run(ctx context.Context, firstRun bool, runs []run.Run) error {
 
 	// Cleanup the current game helper structure
 	b.ctx.Cleanup()
+	action.ResetStaminaCooldown(b.ctx)
 
 	// Switch to legacy mode if configured and character is not a DLC-Character
 	if !b.ctx.Data.IsDLC() {

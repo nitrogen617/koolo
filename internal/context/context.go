@@ -57,6 +57,8 @@ type Context struct {
 	Char                      Character
 	LastBuffAt                time.Time
 	LastCastAt                time.Time
+	LastStaminaPotUse         time.Time
+	StaminaPotCooldown        time.Duration
 	ContextDebug              map[Priority]*Debug
 	CurrentGame               *CurrentGameHelper
 	SkillPointIndex           int // NEW FIELD: Tracks the next skill to consider from the character's SkillPoints() list

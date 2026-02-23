@@ -219,6 +219,7 @@ type CharacterCfg struct {
 	CommandLineArgs      string `yaml:"commandLineArgs"`
 	KillD2OnStop         bool   `yaml:"killD2OnStop"`
 	ClassicMode          bool   `yaml:"classicMode"`
+	NewKeybindings       bool   `yaml:"newKeybindings"`
 	UseCentralizedPickit bool   `yaml:"useCentralizedPickit"`
 	HidePortraits        bool   `yaml:"hidePortraits"`
 	AutoStart            bool   `yaml:"autoStart"`

@@ -11,6 +11,20 @@ const levelingBuilds = [
     'barb_leveling'
 ];
 
+function isPaladinBuildForNewKeybindings(build) {
+    return typeof build === 'string' && build.startsWith('paladin');
+}
+
+function autoEnableNewKeybindingsForPaladin(build) {
+    const newKeybindingsCheckbox = document.getElementById('new_keybindings');
+    if (!newKeybindingsCheckbox) {
+        return;
+    }
+    if (isPaladinBuildForNewKeybindings(build) && !newKeybindingsCheckbox.checked) {
+        newKeybindingsCheckbox.checked = true;
+    }
+}
+
 window.onload = function () {
     let enabled_runs_ul = document.getElementById('enabled_runs');
     let disabled_runs_ul = document.getElementById('disabled_runs');
@@ -77,6 +91,7 @@ window.onload = function () {
     const buildSelectElement = document.querySelector('select[name="characterClass"]');
     buildSelectElement.addEventListener('change', function () {
         const selectedBuild = buildSelectElement.value;
+        autoEnableNewKeybindingsForPaladin(selectedBuild);
 
         const enabledRunListElement = document.getElementById('enabled_runs');
         if (!enabledRunListElement) return;
@@ -919,6 +934,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (characterClassSelect) {
         characterClassSelect.addEventListener('change', function () {
+            autoEnableNewKeybindingsForPaladin(characterClassSelect.value);
             updateCharacterOptions(true);
             if (window.refreshAutoStatSkillOptions && characterClassSelect.value) {
                 window.refreshAutoStatSkillOptions(characterClassSelect.value);
@@ -932,6 +948,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     updateCharacterOptions(false); // Call this initially to set the correct state
+    if (characterClassSelect) {
+        autoEnableNewKeybindingsForPaladin(characterClassSelect.value);
+    }
 
     function initAutoStatSkillSettings() {
         const enabledCheckbox = document.getElementById('autoStatSkillEnabled');

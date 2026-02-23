@@ -1161,6 +1161,10 @@
                     Use Classic Mode (Legacy Graphics)
                 </label>
                 <label>
+                    <input id="new_keybindings" type="checkbox" name="new_keybindings" {{ if .Config.NewKeybindings }}checked{{ end }}/>
+                    Use New Keybindings
+                </label>
+                <label>
                     <input id="hide_portraits" type="checkbox" name="hide_portraits" {{ if .Config.HidePortraits }}checked{{ end }}/>
                     Hide Portraits
                 </label>

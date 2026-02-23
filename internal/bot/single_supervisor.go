@@ -627,6 +627,10 @@ func (s *SinglePlayerSupervisor) ensureSkillKeyBindingsReady() error {
 		s.bot.ctx.Logger.Debug("Skipping key binding check: character config is nil")
 		return nil
 	}
+	if !cfg.NewKeybindings {
+		s.bot.ctx.Logger.Debug("Skipping key binding check: new keybindings disabled")
+		return nil
+	}
 	characterName := strings.TrimSpace(cfg.CharacterName)
 	if characterName == "" {
 		s.bot.ctx.Logger.Debug("Skipping key binding check: character name is empty")

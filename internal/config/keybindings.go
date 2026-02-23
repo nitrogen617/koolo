@@ -41,18 +41,13 @@ func EnsureSkillKeyBindings(cfg *CharacterCfg, useCustomSettings bool) (KeyBindi
 		return result, nil
 	}
 
-	if _, err := os.Stat(saveDir); os.IsNotExist(err) {
-		result.Missing = true
-		return result, nil
-	}
-
 	characterName := strings.TrimSpace(cfg.CharacterName)
 	if characterName == "" {
 		result.Missing = true
 		return result, nil
 	}
 
-	path, exists, err := resolveKeyBindingPath(saveDir, characterName, cfg.AuthMethod)
+	path, exists, err := resolveKeyBindingPathWithFallback(saveDir, characterName, cfg.AuthMethod)
 	if err != nil {
 		return result, err
 	}
@@ -191,6 +186,51 @@ func resolveKeyBindingPath(saveDir, characterName, authMethod string) (string, b
 	return path, false, nil
 }
 
+func resolveKeyBindingPathWithFallback(saveDir, characterName, authMethod string) (string, bool, error) {
+	dirs := keyBindingSearchDirs(saveDir)
+	firstPath := ""
+
+	for _, dir := range dirs {
+		path, exists, err := resolveKeyBindingPath(dir, characterName, authMethod)
+		if err != nil {
+			return "", false, err
+		}
+		if firstPath == "" {
+			firstPath = path
+		}
+		if exists {
+			return path, true, nil
+		}
+	}
+
+	if firstPath == "" {
+		return filepath.Join(saveDir, keyBindingFilename(characterName, authMethod)), false, nil
+	}
+
+	return firstPath, false, nil
+}
+
+func keyBindingSearchDirs(saveDir string) []string {
+	dirs := make([]string, 0, 2)
+	if saveDir != "" {
+		dirs = append(dirs, saveDir)
+	}
+
+	// If -mod points to a custom folder, fallback to the default D2R save folder.
+	if settingsPath != "" && !samePath(saveDir, settingsPath) {
+		dirs = append(dirs, settingsPath)
+	}
+
+	return dirs
+}
+
+func samePath(a, b string) bool {
+	if a == "" || b == "" {
+		return a == b
+	}
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
 func WaitForKeyBindings(saveDir, characterName, authMethod string, timeout time.Duration) error {
 	if saveDir == "" {
 		return fmt.Errorf("save dir is empty")
@@ -202,7 +242,7 @@ func WaitForKeyBindings(saveDir, characterName, authMethod string, timeout time.
 
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if _, exists, err := resolveKeyBindingPath(saveDir, characterName, authMethod); err != nil {
+		if _, exists, err := resolveKeyBindingPathWithFallback(saveDir, characterName, authMethod); err != nil {
 			return err
 		} else if exists {
 			return nil

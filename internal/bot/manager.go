@@ -251,10 +251,12 @@ func (mng *SupervisorManager) buildSupervisor(supervisorName string, logger *slo
 		}
 	} else {
 		var err error
-		if kbResult, kbErr := config.EnsureSkillKeyBindings(cfg, config.Koolo.UseCustomSettings); kbErr != nil {
-			logger.Warn("Failed to ensure skill key bindings", slog.Any("error", kbErr))
-		} else if kbResult.Missing {
-			logger.Info("Key binding file missing; will bootstrap in-game", slog.String("character", cfg.CharacterName))
+		if cfg.NewKeybindings {
+			if kbResult, kbErr := config.EnsureSkillKeyBindings(cfg, config.Koolo.UseCustomSettings); kbErr != nil {
+				logger.Warn("Failed to ensure skill key bindings", slog.Any("error", kbErr))
+			} else if kbResult.Missing {
+				logger.Info("Key binding file missing; will bootstrap in-game", slog.String("character", cfg.CharacterName))
+			}
 		}
 		pid, hwnd, err = game.StartGame(cfg.Username, cfg.Password, cfg.AuthMethod, cfg.AuthToken, cfg.Realm, cfg.CommandLineArgs, config.Koolo.UseCustomSettings)
 		if err != nil {

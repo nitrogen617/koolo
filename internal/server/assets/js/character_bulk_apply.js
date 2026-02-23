@@ -286,6 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
             commandLineArgs: inputVal('commandLineArgs'),
             killD2OnStop: boolVal('kill_d2_process'),
             classicMode: boolVal('classic_mode'),
+            newKeybindings: boolVal('new_keybindings'),
             hidePortraits: boolVal('hide_portraits'),
         };
         return JSON.stringify(state);
@@ -846,6 +847,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'commandLineArgs',
         'kill_d2_process',
         'classic_mode',
+        'new_keybindings',
         'hide_portraits',
     ]);
 

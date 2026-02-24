@@ -343,7 +343,7 @@ func (s Javazon) killMonsterSequenceDensity(
 		// Loot-guard: during ItemPickup, clear only around valuable items that Pickit actually wants (tight radius).
 		lootGuard := false
 		lootGuardPos := data.Position{}
-		if ctx.CurrentGame != nil && ctx.CurrentGame.IsPickingItems {
+		if ctx.IsPickingItems() {
 			if pos, ok := javazonNearestValuablePickupPos(30); ok {
 				lootGuard = true
 				lootGuardPos = pos

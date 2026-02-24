@@ -22,7 +22,6 @@ const (
 )
 
 var (
-	maxInteractions      = 24 // 25 attempts since we start at 0
 	ErrItemTooFar        = errors.New("item is too far away")
 	ErrNoLOSToItem       = errors.New("no line of sight to item")
 	ErrMonsterAroundItem = errors.New("monsters detected around item")
@@ -45,6 +44,7 @@ func PickupItem(it data.Item, itemPickupAttempt int) error {
 
 func PickupItemMouse(it data.Item, itemPickupAttempt int) error {
 	ctx := context.Get()
+	maxInteractions := 24 // 25 attempts since we start at 0
 
 	// Wait for the character to finish casting or moving before proceeding.
 	// We'll use a local timeout to prevent an indefinite wait.

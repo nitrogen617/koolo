@@ -86,7 +86,7 @@ func ItemPickup(maxDistance int) error {
 	const debugPickit = false
 
 	// If we're already picking items, skip it
-	if ctx.CurrentGame.IsPickingItems {
+	if ctx.IsPickingItems() {
 		return nil
 	}
 

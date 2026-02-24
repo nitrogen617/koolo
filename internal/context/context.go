@@ -214,9 +214,21 @@ func (ctx *Context) EnableItemPickup() {
 }
 
 func (ctx *Context) SetPickingItems(value bool) {
+	if ctx.CurrentGame == nil {
+		return
+	}
 	ctx.CurrentGame.mutex.Lock()
 	ctx.CurrentGame.IsPickingItems = value
 	ctx.CurrentGame.mutex.Unlock()
+}
+
+func (ctx *Context) IsPickingItems() bool {
+	if ctx.CurrentGame == nil {
+		return false
+	}
+	ctx.CurrentGame.mutex.Lock()
+	defer ctx.CurrentGame.mutex.Unlock()
+	return ctx.CurrentGame.IsPickingItems
 }
 
 func (s *Status) PauseIfNotPriority() {

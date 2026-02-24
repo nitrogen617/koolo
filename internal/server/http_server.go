@@ -1949,6 +1949,9 @@ func (s *HttpServer) updateConfigFromForm(values url.Values, cfg *config.Charact
 		cfg.Game.InteractWithShrines = values.Has("interactWithShrines")
 		cfg.Game.InteractWithChests = values.Has("interactWithChests")
 		cfg.Game.InteractWithSuperChests = values.Has("interactWithSuperChests")
+		if values.Has("gameVersion") {
+			cfg.Game.GameVersion = config.NormalizeGameVersion(values.Get("gameVersion"))
+		}
 
 		// Ensure the two chest options are mutually exclusive. If both are enabled
 		// (e.g. due to manual edits), keep the legacy behavior (all chests).
@@ -2821,6 +2824,9 @@ func (s *HttpServer) characterSettings(w http.ResponseWriter, r *http.Request) {
 		cfg.Game.InteractWithShrines = r.Form.Has("interactWithShrines")
 		cfg.Game.InteractWithChests = r.Form.Has("interactWithChests")
 		cfg.Game.InteractWithSuperChests = r.Form.Has("interactWithSuperChests")
+		if r.Form.Has("gameVersion") {
+			cfg.Game.GameVersion = config.NormalizeGameVersion(r.Form.Get("gameVersion"))
+		}
 		cfg.Game.StopLevelingAt, _ = strconv.Atoi(r.Form.Get("stopLevelingAt"))
 		cfg.Game.IsNonLadderChar = r.Form.Has("isNonLadderChar")
 		cfg.Game.IsHardCoreChar = r.Form.Has("isHardCoreChar")

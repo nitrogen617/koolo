@@ -25,6 +25,8 @@ var classCoords = map[string][2]int{
 	"druid": {ui.CharDruidX, ui.CharDruidY},
 }
 
+var classMatchOrder = []string{"amazon", "assassin", "necro", "barb", "pala", "sorc", "druid"}
+
 const (
 	INPUT_KEYBOARD    = 1
 	KEYEVENTF_UNICODE = 0x0004
@@ -144,6 +146,12 @@ func selectGameVersion(ctx *context.Status) {
 	}
 	ctx.Logger.Info("[AutoCreate] Selecting game version", slog.String("gameVersion", version))
 
+	if !isPanelVisible(ctx, "DropdownListContents") {
+		ctx.Logger.Info("[AutoCreate] Opening game version dropdown for option read")
+		ctx.HID.Click(game.LeftButton, ui.GameVersionBtnX, ui.GameVersionBtnY)
+		utils.Sleep(gameVersionMenuOpenDelay)
+	}
+
 	options := getGameVersionOptionsWithRetry(ctx)
 	hasWarlock := containsGameVersionOption(options, "warlock")
 	hasExpansion := containsGameVersionOption(options, "expansion")
@@ -160,6 +168,11 @@ func selectGameVersion(ctx *context.Status) {
 
 	// Requested ROTW/warlock: do not change game version selection.
 	if version == "warlock" {
+		// Keep current selection; close dropdown to avoid intercepting later class clicks.
+		if isPanelVisible(ctx, "DropdownListContents") {
+			ctx.HID.Click(game.LeftButton, ui.GameVersionBtnX, ui.GameVersionBtnY)
+			utils.Sleep(180)
+		}
 		ctx.Logger.Info("[AutoCreate] Warlock requested, skipping game version selection input")
 		return
 	}
@@ -304,6 +317,8 @@ func getGameVersionOptionsWithRetry(ctx *context.Status) []string {
 }
 
 func panelTextValue(panel d2data.Panel) string {
+	// DropdownListContents rows can intermittently expose garbled data in ExtraText2.
+	// Keep ExtraText ahead of ExtraText2 so we prefer stable, readable text when ExtraText3 is empty.
 	for _, candidate := range []string{panel.ExtraText3, panel.ExtraText, panel.ExtraText2} {
 		if strings.TrimSpace(candidate) != "" {
 			return candidate
@@ -367,8 +382,6 @@ func ensureForegroundWindow(ctx *context.Status) {
 func enterCreationScreen(ctx *context.Status) error {
 	for i := 0; i < 5; i++ {
 		ctx.HID.Click(game.LeftButton, ui.CharCreateNewBtnX, ui.CharCreateNewBtnY)
-		utils.Sleep(300)
-		ctx.HID.Click(game.LeftButton, ui.CharCreateNewBtnX, ui.CharCreateNewBtnY)
 		utils.Sleep(1000)
 		if ctx.GameReader.IsInCharacterCreationScreen() {
 			return nil
@@ -379,7 +392,8 @@ func enterCreationScreen(ctx *context.Status) error {
 
 func getClassPosition(class string) ([2]int, error) {
 	lowerClass := strings.ToLower(class)
-	for k, pos := range classCoords {
+	for _, k := range classMatchOrder {
+		pos := classCoords[k]
 		if strings.Contains(lowerClass, k) {
 			return pos, nil
 		}
@@ -398,36 +412,10 @@ func inputCharacterName(ctx *context.Status, name string) error {
 	}
 	utils.Sleep(200)
 
-	// Check for non-ASCII
-	hasNonASCII := false
-	for _, r := range name {
-		if r > 127 {
-			hasNonASCII = true
-			break
-		}
-	}
-
-	if hasNonASCII {
-		return inputNonASCIIName(ctx, name)
-	}
-	return inputASCIIName(ctx, name)
+	return inputName(ctx, name)
 }
 
-func inputASCIIName(ctx *context.Status, name string) error {
-	for _, r := range name {
-		if err := sendUnicodeChar(r); err != nil {
-			ctx.Logger.Error("Failed to send char", slog.String("char", string(r)), slog.Any("error", err))
-			return err
-		}
-		utils.Sleep(60)
-	}
-	utils.Sleep(500)
-	return nil
-}
-
-func inputNonASCIIName(ctx *context.Status, name string) error {
-	ctx.Logger.Info("[AutoCreate] Using SendInput for non-ASCII name", slog.String("name", name))
-
+func inputName(ctx *context.Status, name string) error {
 	for _, r := range name {
 		if err := sendUnicodeChar(r); err != nil {
 			ctx.Logger.Error("Failed to send unicode char", slog.String("char", string(r)), slog.Any("error", err))

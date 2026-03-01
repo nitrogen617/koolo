@@ -1,6 +1,8 @@
 package run
 
 import (
+	"slices"
+
 	"github.com/hectorgimenez/d2go/pkg/data"
 	"github.com/hectorgimenez/d2go/pkg/data/area"
 	"github.com/hectorgimenez/d2go/pkg/data/difficulty"
@@ -10,6 +12,118 @@ import (
 	"github.com/hectorgimenez/koolo/internal/config"
 	"github.com/hectorgimenez/koolo/internal/context"
 )
+
+var nightmareCountessRunewordRequirements = map[item.RunewordName]map[string]int{
+	item.RunewordStealth: {
+		"TalRune": 1,
+		"EthRune": 1,
+	},
+	item.RunewordSpirit: {
+		"TalRune":  1,
+		"ThulRune": 1,
+		"OrtRune":  1,
+		"AmnRune":  1,
+	},
+	item.RunewordInsight: {
+		"RalRune": 1,
+		"TalRune": 1,
+		"SolRune": 1,
+	},
+	item.RunewordLore: {
+		"OrtRune": 1,
+		"SolRune": 1,
+	},
+}
+
+var nightmareCountessTrackedRunes = map[string]struct{}{
+	"TalRune":  {},
+	"EthRune":  {},
+	"ThulRune": {},
+	"OrtRune":  {},
+	"AmnRune":  {},
+	"RalRune":  {},
+	"SolRune":  {},
+}
+
+func selectedCountessRunewords(settings *SequenceSettings, currentDifficulty difficulty.Difficulty) []item.RunewordName {
+	if settings == nil {
+		return nil
+	}
+
+	if currentDifficulty == difficulty.Normal {
+		if settings.SkipCountessWhenStealthReady {
+			return []item.RunewordName{item.RunewordStealth}
+		}
+		return nil
+	}
+
+	if currentDifficulty != difficulty.Nightmare {
+		return nil
+	}
+
+	selected := make([]item.RunewordName, 0, len(settings.CountessNightmareRunewords))
+	for _, name := range settings.CountessNightmareRunewords {
+		runeword := item.RunewordName(name)
+		if _, isSupported := nightmareCountessRunewordRequirements[runeword]; isSupported && !slices.Contains(selected, runeword) {
+			selected = append(selected, runeword)
+		}
+	}
+
+	if len(selected) == 0 && settings.SkipCountessWhenNmCoreRunesReady {
+		return []item.RunewordName{item.RunewordSpirit, item.RunewordInsight, item.RunewordLore}
+	}
+
+	return selected
+}
+
+func buildCountessInventory(items []data.Item) (map[string]int, map[item.RunewordName]bool) {
+	runes := make(map[string]int)
+	runewords := make(map[item.RunewordName]bool)
+
+	for _, itm := range action.FilterDLCGhostItems(items) {
+		if itm.IsRuneword {
+			runewords[itm.RunewordName] = true
+		}
+		if _, tracked := nightmareCountessTrackedRunes[string(itm.Name)]; tracked {
+			runes[string(itm.Name)] += action.GetItemQuantity(itm)
+		}
+	}
+
+	return runes, runewords
+}
+
+func consumeRunewordRunes(available map[string]int, runeword item.RunewordName) bool {
+	requirements := nightmareCountessRunewordRequirements[runeword]
+	for runeName, quantity := range requirements {
+		if available[runeName] < quantity {
+			return false
+		}
+	}
+
+	for runeName, quantity := range requirements {
+		available[runeName] -= quantity
+	}
+
+	return true
+}
+
+func hasCountessRunewordsReady(items []data.Item, selected []item.RunewordName) bool {
+	if len(selected) == 0 {
+		return false
+	}
+
+	availableRunes, ownedRunewords := buildCountessInventory(items)
+	for _, runeword := range selected {
+		if ownedRunewords[runeword] {
+			continue
+		}
+		if !consumeRunewordRunes(availableRunes, runeword) {
+			return false
+		}
+	}
+
+	return true
+}
 
 type Countess struct {
 	ctx *context.Status
@@ -33,6 +147,8 @@ func (a Countess) CheckConditions(parameters *RunParameters) SequencerResult {
 	}
 
 	if farmingRun && parameters != nil && parameters.SequenceSettings != nil {
+		selectedRunewords := selectedCountessRunewords(parameters.SequenceSettings, a.ctx.CharacterCfg.Game.Difficulty)
+
 		if _, isLevelingChar := a.ctx.Char.(context.LevelingCharacter); isLevelingChar &&
 			a.ctx.CharacterCfg.Game.Difficulty == difficulty.Normal &&
 			!a.ctx.Data.Quests[quest.Act1TheSearchForCain].Completed() {
@@ -41,32 +157,28 @@ func (a Countess) CheckConditions(parameters *RunParameters) SequencerResult {
 
 		if _, isLevelingChar := a.ctx.Char.(context.LevelingCharacter); isLevelingChar &&
 			a.ctx.CharacterCfg.Game.Difficulty == difficulty.Normal &&
-			parameters.SequenceSettings.SkipCountessWhenStealthReady {
-			ownedTal := 0
-			ownedEth := 0
+			len(selectedRunewords) > 0 {
 			items := a.ctx.Data.Inventory.ByLocation(
 				item.LocationInventory,
 				item.LocationStash,
 				item.LocationSharedStash,
 				item.LocationRunesTab,
 			)
-			for _, itm := range items {
-				if itm.IsRuneword && itm.RunewordName == item.RunewordStealth {
-					return SequencerSkip
-				}
-
-				quantity := 1
-				if itm.Location.LocationType == item.LocationRunesTab && itm.StackedQuantity > 0 {
-					quantity = itm.StackedQuantity
-				}
-				switch string(itm.Name) {
-				case "TalRune":
-					ownedTal += quantity
-				case "EthRune":
-					ownedEth += quantity
-				}
+			if hasCountessRunewordsReady(items, selectedRunewords) {
+				return SequencerSkip
 			}
-			if ownedTal >= 1 && ownedEth >= 1 {
+		}
+
+		if _, isLevelingChar := a.ctx.Char.(context.LevelingCharacter); isLevelingChar &&
+			a.ctx.CharacterCfg.Game.Difficulty == difficulty.Nightmare &&
+			len(selectedRunewords) > 0 {
+			items := a.ctx.Data.Inventory.ByLocation(
+				item.LocationInventory,
+				item.LocationStash,
+				item.LocationSharedStash,
+				item.LocationRunesTab,
+			)
+			if hasCountessRunewordsReady(items, selectedRunewords) {
 				return SequencerSkip
 			}
 		}

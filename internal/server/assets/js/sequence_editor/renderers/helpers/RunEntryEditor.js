@@ -41,6 +41,13 @@ export function buildRunSummary(entry, difficulty) {
   if (entry.skipCountessWhenStealthReady && difficulty === "normal") {
     parts.push("Skip on Stealth");
   }
+  if (
+    difficulty === "nightmare" &&
+    Array.isArray(entry.countessNightmareRunewords) &&
+    entry.countessNightmareRunewords.length
+  ) {
+    parts.push(`Skip on ${entry.countessNightmareRunewords.join("/")}`);
+  }
 
   if (!parts.length) {
     return "No modifiers";
@@ -106,7 +113,6 @@ export function createRunParameterEditor(entry, { markDirty, onChange, difficult
       "Skip once Tal+Eth or Stealth is available",
     ]);
   }
-
   flagDefinitions.forEach(([field, label]) => {
     const wrapper = document.createElement("label");
     wrapper.className = "checkbox-field";
@@ -125,5 +131,42 @@ export function createRunParameterEditor(entry, { markDirty, onChange, difficult
   });
 
   editor.appendChild(flags);
+
+  if (entry.run === "countess" && difficulty === "nightmare") {
+    const nightmareRunewordOptions = ["Spirit", "Insight", "Lore"];
+    const nightmareRunewords = document.createElement("div");
+    nightmareRunewords.className = "checkbox-grid run-editor-flags";
+
+    nightmareRunewordOptions.forEach((runeword) => {
+      const wrapper = document.createElement("label");
+      wrapper.className = "checkbox-field";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = Array.isArray(entry.countessNightmareRunewords)
+        ? entry.countessNightmareRunewords.includes(runeword)
+        : false;
+      checkbox.addEventListener("change", (event) => {
+        const selected = new Set(
+          Array.isArray(entry.countessNightmareRunewords) ? entry.countessNightmareRunewords : []
+        );
+        if (event.target.checked) {
+          selected.add(runeword);
+        } else {
+          selected.delete(runeword);
+        }
+        entry.countessNightmareRunewords = nightmareRunewordOptions.filter((name) => selected.has(name));
+        entry.skipCountessWhenNmCoreRunesReady = entry.countessNightmareRunewords.length > 0;
+        notifyChange();
+      });
+      const span = document.createElement("span");
+      span.textContent = `Farm for ${runeword}`;
+      wrapper.appendChild(checkbox);
+      wrapper.appendChild(span);
+      nightmareRunewords.appendChild(wrapper);
+    });
+
+    editor.appendChild(buildField("NM Countess Goals", nightmareRunewords, "run-editor-field"));
+  }
+
   return editor;
 }

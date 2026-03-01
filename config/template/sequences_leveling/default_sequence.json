@@ -239,11 +239,13 @@
             },
             {
                 "run": "countess",
-                "maxLevel": 59
+                "maxLevel": 59,
+                "countessNightmareRunewords": ["Spirit", "Insight", "Lore"]
             },
             {
                 "run": "countess",
-                "minLevel": 70
+                "minLevel": 70,
+                "countessNightmareRunewords": ["Spirit", "Insight", "Lore"]
             },
             {
                 "run": "diablo",

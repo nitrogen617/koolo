@@ -31,6 +31,10 @@ const BELT_COLUMN_OPTIONS = [
  * StopIfCheckFails?: boolean,
  * skipCountessWhenStealthReady?: boolean,
  * SkipCountessWhenStealthReady?: boolean,
+ * skipCountessWhenNmCoreRunesReady?: boolean,
+ * SkipCountessWhenNmCoreRunesReady?: boolean,
+ * countessNightmareRunewords?: Array<string|null|undefined>,
+ * CountessNightmareRunewords?: Array<string|null|undefined>,
  * parameters?: never
  * }} RawRunEntry
  */
@@ -74,7 +78,9 @@ const BELT_COLUMN_OPTIONS = [
  * skipTownChores: boolean,
  * exitGame: boolean,
  * stopIfCheckFails: boolean,
- * skipCountessWhenStealthReady: boolean
+ * skipCountessWhenStealthReady: boolean,
+ * skipCountessWhenNmCoreRunesReady: boolean,
+ * countessNightmareRunewords: string[]
  * }} SequenceRunEntry
  */
 
@@ -215,6 +221,11 @@ export class SequenceDataAdapter {
       return undefined;
     }
 
+    const legacyNmCoreRunesReady = Boolean(
+      raw.skipCountessWhenNmCoreRunesReady ?? raw.SkipCountessWhenNmCoreRunesReady
+    );
+    const nightmareRunewordsRaw = raw.countessNightmareRunewords ?? raw.CountessNightmareRunewords;
+
     const entry = /** @type {SequenceRunEntry} */ ({
       run: typeof raw.run === "string" ? raw.run : "",
       minLevel: normalizeRunNumericValue(parseOptionalNumber(raw.minLevel ?? raw.MinLevel)),
@@ -226,6 +237,14 @@ export class SequenceDataAdapter {
       skipCountessWhenStealthReady: Boolean(
         raw.skipCountessWhenStealthReady ?? raw.SkipCountessWhenStealthReady
       ),
+      skipCountessWhenNmCoreRunesReady: legacyNmCoreRunesReady,
+      countessNightmareRunewords: Array.isArray(nightmareRunewordsRaw)
+        ? nightmareRunewordsRaw
+            .filter((value) => typeof value === "string" && value.trim())
+            .map((value) => value.trim())
+        : legacyNmCoreRunesReady
+          ? ["Spirit", "Insight", "Lore"]
+        : [],
     });
 
     this.state.ensureEntryUID(entry);
@@ -381,6 +400,11 @@ export class SequenceDataAdapter {
     }
     if (entry.skipCountessWhenStealthReady) {
       result.skipCountessWhenStealthReady = true;
+    }
+    if (Array.isArray(entry.countessNightmareRunewords) && entry.countessNightmareRunewords.length) {
+      result.countessNightmareRunewords = [...entry.countessNightmareRunewords];
+    } else if (entry.skipCountessWhenNmCoreRunesReady) {
+      result.skipCountessWhenNmCoreRunesReady = true;
     }
 
     return result;
@@ -552,6 +576,11 @@ export class SequenceDataAdapter {
     entry.exitGame = Boolean(entry.exitGame);
     entry.stopIfCheckFails = Boolean(entry.stopIfCheckFails);
     entry.skipCountessWhenStealthReady = Boolean(entry.skipCountessWhenStealthReady);
+    entry.countessNightmareRunewords = Array.isArray(entry.countessNightmareRunewords)
+      ? [...new Set(entry.countessNightmareRunewords.filter((value) => typeof value === "string" && value.trim()))]
+      : [];
+    entry.skipCountessWhenNmCoreRunesReady =
+      entry.countessNightmareRunewords.length > 0 || Boolean(entry.skipCountessWhenNmCoreRunesReady);
     if ("parameters" in entry) {
       delete entry.parameters;
     }
@@ -680,6 +709,8 @@ export class SequenceDataAdapter {
       exitGame: false,
       stopIfCheckFails: false,
       skipCountessWhenStealthReady: false,
+      skipCountessWhenNmCoreRunesReady: false,
+      countessNightmareRunewords: [],
     });
     this.state.ensureEntryUID(entry);
     return entry;

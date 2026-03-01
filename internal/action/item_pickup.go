@@ -486,8 +486,22 @@ func isAmmoOrJavelin(i data.Item) bool {
 	return i.Name == "Javelin"
 }
 
+func isGem(i data.Item) bool {
+	itmType := i.Type()
+	return itmType.IsType(item.TypeAmethyst) ||
+		itmType.IsType(item.TypeDiamond) ||
+		itmType.IsType(item.TypeEmerald) ||
+		itmType.IsType(item.TypeRuby) ||
+		itmType.IsType(item.TypeSapphire) ||
+		itmType.IsType(item.TypeTopaz) ||
+		itmType.IsType(item.TypeSkull)
+}
+
 func shouldAlwaysPickupForLeveling(i data.Item) bool {
 	if i.Quality == item.QualityRare || i.Quality == item.QualitySet || i.Quality == item.QualityUnique {
+		return true
+	}
+	if isGem(i) {
 		return true
 	}
 	if i.Quality != item.QualityMagic {

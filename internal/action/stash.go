@@ -55,19 +55,32 @@ func Stash(forceStash bool) error {
 		MoveToCoords(data.Position{X: 5130, Y: 5086})
 	}
 
-	bank, _ := ctx.Data.Objects.FindOne(object.Bank)
-	InteractObject(bank,
-		func() bool {
-			return ctx.Data.OpenMenus.Stash
-		},
-	)
+	if err := OpenStash(); err != nil {
+		return err
+	}
 	// Clear messages like TZ change or public game spam. Prevent bot from clicking on messages
 	ClearMessages()
 	stashGold()
-	stashInventory(forceStash)
+	stashInventory(forceStash, false)
+	RebalanceLevelingSocketGemStash()
 	// Add call to dropExcessItems after stashing
 	dropExcessItems()
 	step.CloseAllMenus()
+
+	return nil
+}
+
+func prepareForStashInteraction() error {
+	ctx := context.Get()
+
+	if !ctx.Data.OpenMenus.IsMenuOpen() {
+		return nil
+	}
+
+	if err := step.CloseAllMenus(); err != nil {
+		return err
+	}
+	ctx.RefreshGameData()
 
 	return nil
 }
@@ -156,7 +169,7 @@ func stashGold() {
 	ctx.Logger.Info("All stash tabs are full of gold :D")
 }
 
-func stashInventory(firstRun bool) {
+func stashInventory(firstRun bool, closeMenus bool) {
 	ctx := context.Get()
 	ctx.SetLastAction("stashInventory")
 
@@ -201,7 +214,9 @@ func stashInventory(firstRun bool) {
 			ctx.Logger.Warn(fmt.Sprintf("ERROR: Item %s [%s] could not be stashed into any tab. All stash tabs might be full.", i.Desc().Name, i.Quality.ToString()))
 		}
 	}
-	step.CloseAllMenus()
+	if closeMenus {
+		step.CloseAllMenus()
+	}
 }
 
 // stashItemAcrossTabs attempts to stash the given item across available tabs, applying the same logic
@@ -294,6 +309,9 @@ func shouldStashIt(i data.Item, firstRun bool) (bool, bool, string, string) {
 
 	if _, isLevelingChar := ctx.Char.(context.LevelingCharacter); isLevelingChar && i.IsFromQuest() && i.Name != "HoradricCube" || i.Name == "HoradricStaff" {
 		return false, false, "", ""
+	}
+	if _, isLevelingChar := ctx.Char.(context.LevelingCharacter); isLevelingChar && isLevelingSocketGem(i) {
+		return true, false, "LevelingSocketGem", ""
 	}
 
 	if firstRun {
@@ -759,15 +777,21 @@ func OpenStash() error {
 	// Reset tab tracker — stash always opens on personal tab
 	ctx.CurrentGame.CurrentStashTab = 1
 
+	if err := prepareForStashInteraction(); err != nil {
+		return err
+	}
+
 	bank, found := ctx.Data.Objects.FindOne(object.Bank)
 	if !found {
 		return errors.New("stash not found")
 	}
-	InteractObject(bank,
+	if err := InteractObject(bank,
 		func() bool {
 			return ctx.Data.OpenMenus.Stash
 		},
-	)
+	); err != nil {
+		return err
+	}
 
 	return nil
 }

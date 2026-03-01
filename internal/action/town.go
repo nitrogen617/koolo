@@ -136,8 +136,11 @@ func PreRun(firstRun bool) error {
 		TryBuyLevelingBelt()
 	}
 
-	// Stash before vendor
-	Stash(false)
+	// Stash before vendor only for leveling characters so socketing can happen
+	// before junk is sold without changing the default farmer town flow.
+	if isLevelingChar {
+		Stash(false)
+	}
 
 	// Refill pots, sell, buy etc
 	VendorRefill(VendorRefillOpts{SellJunk: true, BuyConsumables: true})
@@ -246,14 +249,16 @@ func InRunReturnTownRoutine() error {
 		ctx.PauseIfNotPriority() // Check after AutoEquip
 	}
 
+	if isLevelingChar {
+		Stash(false)
+		ctx.PauseIfNotPriority() // Check after Stash
+	}
 	VendorRefill(VendorRefillOpts{SellJunk: true, BuyConsumables: true})
 	ctx.PauseIfNotPriority() // Check after VendorRefill
 	if isLevelingChar {
 		TryBuyAndConsumeStaminaPots()
 		ctx.PauseIfNotPriority() // Check after TryBuyAndConsumeStaminaPots
 	}
-	Stash(false)
-	ctx.PauseIfNotPriority() // Check after Stash
 	Gamble()
 	ctx.PauseIfNotPriority() // Check after Gamble
 	Stash(false)

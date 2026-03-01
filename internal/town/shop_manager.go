@@ -510,6 +510,11 @@ func ItemsToBeSold(lockConfig ...[][]int) (items []data.Item) {
 	}
 
 	for _, itm := range ctx.Data.Inventory.ByLocation(item.LocationInventory) {
+		if shouldSellLevelingSocketGem(ctx, itm) {
+			items = append(items, itm)
+			continue
+		}
+
 		// Check if the item is in a locked slot, and if so, skip it.
 		if len(currentLockConfig) > itm.Position.Y && len(currentLockConfig[itm.Position.Y]) > itm.Position.X {
 			if currentLockConfig[itm.Position.Y][itm.Position.X] == 0 {
@@ -532,6 +537,14 @@ func ItemsToBeSold(lockConfig ...[][]int) (items []data.Item) {
 		}
 
 		if itm.IsRuneword {
+			continue
+		}
+
+		// Socketed temporary leveling gear (for example, gemmed shields/helms) is
+		// intentionally not stashed. If it also matches a NIP rule, it would
+		// otherwise get stuck in inventory forever, so vendor it once unequipped.
+		if actionHasSocketedStashGem(itm) {
+			items = append(items, itm)
 			continue
 		}
 
@@ -583,4 +596,24 @@ func ItemsToBeSold(lockConfig ...[][]int) (items []data.Item) {
 	}
 
 	return
+}
+
+func shouldSellLevelingSocketGem(ctx *context.Status, itm data.Item) bool {
+	if ctx == nil || !ctx.Data.IsLevelingCharacter {
+		return false
+	}
+
+	itmType := itm.Type()
+	return itmType.IsType(item.TypeDiamond) || itmType.IsType(item.TypeRuby) || itmType.IsType(item.TypeSapphire)
+}
+
+func actionHasSocketedStashGem(itm data.Item) bool {
+	for _, socket := range itm.Sockets {
+		name := strings.ToLower(string(socket.Name))
+		if strings.HasSuffix(name, "ruby") || strings.HasSuffix(name, "sapphire") || strings.HasSuffix(name, "diamond") {
+			return true
+		}
+	}
+
+	return false
 }

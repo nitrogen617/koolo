@@ -235,7 +235,7 @@ func ensureCubeIsEmpty() error {
 	ctx.HID.PressKey(win.VK_ESCAPE)
 	utils.Sleep(300)
 
-	stashInventory(true)
+	stashInventory(true, true)
 
 	return ensureCubeIsOpen()
 }

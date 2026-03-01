@@ -278,11 +278,39 @@ func buyAct1LowLevelBeltFromCharsi(ctx *context.Status) error {
 
 	ctx.HID.KeySequence(win.VK_HOME, win.VK_DOWN, win.VK_RETURN)
 	SwitchVendorTab(1)
+	purchasedBeltName := item.Name("")
 	if beltItem, found := ctx.Data.Inventory.Find(item.Name("LightBelt"), item.LocationVendor); found {
 		town.BuyItem(beltItem, 1)
+		purchasedBeltName = item.Name("LightBelt")
 	} else if beltItem, found := ctx.Data.Inventory.Find(item.Name("Sash"), item.LocationVendor); found {
 		town.BuyItem(beltItem, 1)
+		purchasedBeltName = item.Name("Sash")
 	}
+	ctx.RefreshGameData()
+	if purchasedBeltName == "" {
+		return nil
+	}
+
+	if belt, ok := ctx.Data.Inventory.Find(purchasedBeltName, item.LocationInventory); ok {
+		if err := EquipItem(belt, item.LocBelt, item.LocationEquipped); err != nil {
+			ctx.Logger.Error("Failed to equip belt after buying from Charsi", "error", err)
+		}
+		return nil
+	}
+
+	for _, belt := range ctx.Data.Inventory.ByLocation(item.LocationCursor) {
+		if belt.Name != purchasedBeltName {
+			continue
+		}
+		if slotCoords, ok := getEquippedSlotCoords(item.LocBelt, ctx.Data.LegacyGraphics); ok {
+			ctx.HID.Click(game.LeftButton, slotCoords.X, slotCoords.Y)
+			utils.Sleep(300)
+			ctx.RefreshGameData()
+		}
+		return nil
+	}
+
+	ctx.Logger.Warn("Purchased Act 1 belt not found in inventory or cursor", "item", purchasedBeltName)
 
 	return nil
 }
@@ -435,21 +463,25 @@ func hasAnyBelt(ctx *context.Status) bool {
 	return false
 }
 
-func levelingGemSearchLocations(ctx *context.Status) []item.LocationType {
-	if ctx != nil && ctx.Data.IsDLC() {
-		// DLC stores gems in the dedicated gems tab.
-		return []item.LocationType{item.LocationGemsTab}
-	}
+const levelingSocketGemKeepLimit = 3
+const levelingHelmetRalReserve = 1
+const levelingHelmetRalMinLevel = 19
 
-	return []item.LocationType{
+func levelingGemSearchLocations(ctx *context.Status) []item.LocationType {
+	locations := []item.LocationType{
 		item.LocationInventory,
 		item.LocationStash,
 		item.LocationSharedStash,
 	}
+	if ctx != nil && ctx.Data.IsDLC() {
+		locations = append(locations, item.LocationGemsTab, item.LocationRunesTab)
+	}
+
+	return locations
 }
 
 func availableLevelingGemQuantity(itm data.Item) int {
-	if itm.Location.LocationType == item.LocationGemsTab {
+	if itm.Location.LocationType == item.LocationGemsTab || itm.Location.LocationType == item.LocationRunesTab {
 		qty := isDLCStackedQuantity(itm)
 		if qty > 0 {
 			return qty
@@ -459,8 +491,36 @@ func availableLevelingGemQuantity(itm data.Item) int {
 	return 1
 }
 
-func TrySocketLevelingGems() {
+func levelingSocketGemKind(itm data.Item) (string, int, bool) {
+	for _, kind := range []string{"Diamond", "Ruby", "Sapphire"} {
+		if rank, ok := gemRank(string(itm.Name), kind); ok {
+			return kind, rank, true
+		}
+	}
+
+	return "", 0, false
+}
+
+func isLevelingSocketGem(itm data.Item) bool {
+	_, _, ok := levelingSocketGemKind(itm)
+	return ok
+}
+
+func levelingSocketGemStorageLocations(ctx *context.Status) []item.LocationType {
+	locations := []item.LocationType{
+		item.LocationStash,
+		item.LocationSharedStash,
+	}
+	if ctx != nil && ctx.Data.IsDLC() {
+		locations = append(locations, item.LocationGemsTab)
+	}
+
+	return locations
+}
+
+func RebalanceLevelingSocketGemStash() {
 	ctx := context.Get()
+	openedStash := false
 
 	if _, isLevelingChar := ctx.Char.(context.LevelingCharacter); !isLevelingChar {
 		return
@@ -468,6 +528,110 @@ func TrySocketLevelingGems() {
 	if !ctx.Data.PlayerUnit.Area.IsTown() {
 		return
 	}
+	if ctx.Data.IsDLC() {
+		return
+	}
+	if !ctx.Data.OpenMenus.Stash {
+		if err := OpenStash(); err != nil {
+			ctx.Logger.Debug("Leveling gem rebalance skipped: failed opening stash", "error", err)
+			return
+		}
+		openedStash = true
+		defer step.CloseAllMenus()
+	}
+
+	ctx.RefreshGameData()
+	ctx.RefreshInventory()
+
+	type storedGem struct {
+		item data.Item
+		kind string
+		rank int
+		qty  int
+	}
+
+	gemsByKind := map[string][]storedGem{}
+	for _, itm := range FilterDLCGhostItems(ctx.Data.Inventory.ByLocation(levelingSocketGemStorageLocations(ctx)...)) {
+		kind, rank, ok := levelingSocketGemKind(itm)
+		if !ok {
+			continue
+		}
+		qty := availableLevelingGemQuantity(itm)
+		if qty <= 0 {
+			continue
+		}
+		gemsByKind[kind] = append(gemsByKind[kind], storedGem{
+			item: itm,
+			kind: kind,
+			rank: rank,
+			qty:  qty,
+		})
+	}
+
+	for kind, stored := range gemsByKind {
+		totalQty := 0
+		for _, gem := range stored {
+			totalQty += gem.qty
+		}
+		if totalQty <= levelingSocketGemKeepLimit {
+			continue
+		}
+
+		excess := totalQty - levelingSocketGemKeepLimit
+		slices.SortFunc(stored, func(a, b storedGem) int {
+			if a.rank != b.rank {
+				return a.rank - b.rank
+			}
+			return a.qty - b.qty
+		})
+
+		moved := 0
+		for _, candidate := range stored {
+			for candidate.qty > 0 && excess > 0 {
+				currentGem, found := ctx.Data.Inventory.FindByID(candidate.item.UnitID)
+				if !found {
+					break
+				}
+				if !inventoryCanFitItem(currentGem) {
+					ctx.Logger.Debug("Not enough inventory space to rebalance leveling gems", "kind", kind, "remainingExcess", excess)
+					break
+				}
+				if _, ok := moveItemToInventory(currentGem); !ok {
+					ctx.Logger.Debug("Failed to move excess leveling gem to inventory", "kind", kind, "gem", currentGem.Name)
+					break
+				}
+				excess--
+				candidate.qty--
+				moved++
+				ctx.RefreshInventory()
+			}
+			if excess <= 0 {
+				break
+			}
+		}
+
+		if moved > 0 {
+			ctx.Logger.Debug("Rebalanced leveling gems", "kind", kind, "movedToInventory", moved, "kept", totalQty-moved)
+		}
+	}
+
+	if openedStash {
+		ctx.RefreshGameData()
+	}
+}
+
+func TrySocketLevelingGems() {
+	ctx := context.Get()
+
+	if _, isLevelingChar := ctx.Char.(context.LevelingCharacter); !isLevelingChar {
+		ctx.Logger.Debug("Leveling socket skipped: character is not a leveling build")
+		return
+	}
+	if !ctx.Data.PlayerUnit.Area.IsTown() {
+		ctx.Logger.Debug("Leveling socket skipped: player is not in town", "area", ctx.Data.PlayerUnit.Area)
+		return
+	}
+	ctx.Logger.Debug("Leveling socket evaluation started")
 	gemSearchLocations := levelingGemSearchLocations(ctx)
 
 	hasSocketCandidate := false
@@ -499,6 +663,7 @@ func TrySocketLevelingGems() {
 		}
 	}
 	if !hasSocketCandidate && !hasStashCandidate {
+		ctx.Logger.Debug("Leveling socket skipped: no socketable base found")
 		return
 	}
 	for _, gem := range ctx.Data.Inventory.ByLocation(gemSearchLocations...) {
@@ -514,6 +679,10 @@ func TrySocketLevelingGems() {
 			hasStashGems = true
 			break
 		}
+		if gem.Name == "RalRune" {
+			hasStashGems = true
+			break
+		}
 	}
 
 	includeStash := hasStashCandidate || hasStashGems
@@ -522,7 +691,15 @@ func TrySocketLevelingGems() {
 		ctx.RefreshInventory()
 	}
 	gemPool := ctx.Data.Inventory.ByLocation(gemSearchLocations...)
+	if len(gemPool) == 0 {
+		ctx.Logger.Debug("Leveling socket skipped: no gems or runes found in search locations")
+		return
+	}
 	usedGemCount := map[data.UnitID]int{}
+	playerLevel := 0
+	if lvl, found := ctx.Data.PlayerUnit.FindStat(stat.Level, 0); found {
+		playerLevel = lvl.Value
+	}
 
 	gemRanks := func(kind string) []int {
 		ranks := make([]int, 0, len(gemPool))
@@ -544,9 +721,38 @@ func TrySocketLevelingGems() {
 	findBestGem := func(kind string) (data.Item, bool) {
 		bestRank := 0
 		bestItem := data.Item{}
+		bestLocationPriority := 99
 		for _, itm := range gemPool {
 			qty := availableLevelingGemQuantity(itm) - usedGemCount[itm.UnitID]
 			if qty <= 0 {
+				continue
+			}
+			if kind == "RalRune" {
+				if itm.Name != item.Name(kind) {
+					continue
+				}
+				remainingRal := 0
+				for _, candidate := range gemPool {
+					qty := availableLevelingGemQuantity(candidate) - usedGemCount[candidate.UnitID]
+					if qty <= 0 || candidate.Name != item.Name("RalRune") {
+						continue
+					}
+					remainingRal += qty
+				}
+				if remainingRal <= levelingHelmetRalReserve {
+					return data.Item{}, false
+				}
+				locationPriority := 2
+				switch itm.Location.LocationType {
+				case item.LocationInventory:
+					locationPriority = 0
+				case item.LocationStash, item.LocationSharedStash:
+					locationPriority = 1
+				}
+				if bestItem.UnitID == 0 || locationPriority < bestLocationPriority {
+					bestItem = itm
+					bestLocationPriority = locationPriority
+				}
 				continue
 			}
 			rank, ok := gemRank(string(itm.Name), kind)
@@ -557,6 +763,12 @@ func TrySocketLevelingGems() {
 				bestRank = rank
 				bestItem = itm
 			}
+		}
+		if kind == "RalRune" {
+			if bestItem.UnitID == 0 {
+				return data.Item{}, false
+			}
+			return bestItem, true
 		}
 		if bestRank == 0 {
 			return data.Item{}, false
@@ -577,10 +789,28 @@ func TrySocketLevelingGems() {
 			}
 			return plan
 		}
+		if isHelm && playerLevel >= levelingHelmetRalMinLevel {
+			availableRals := 0
+			for _, itm := range gemPool {
+				qty := availableLevelingGemQuantity(itm) - usedGemCount[itm.UnitID]
+				if qty <= 0 || itm.Name != "RalRune" {
+					continue
+				}
+				availableRals += qty
+			}
+			usableRals := availableRals - levelingHelmetRalReserve
+			if usableRals < 0 {
+				usableRals = 0
+			}
+			for i := 0; i < sockets && usableRals > 0; i++ {
+				plan = append(plan, "RalRune")
+				usableRals--
+			}
+		}
 		if isArmor || isHelm {
 			rubyCount := len(gemRanks("Ruby"))
 			sapphireCount := len(gemRanks("Sapphire"))
-			for i := 0; i < sockets && rubyCount > 0; i++ {
+			for len(plan) < sockets && rubyCount > 0 {
 				plan = append(plan, "Ruby")
 				rubyCount--
 			}
@@ -588,6 +818,23 @@ func TrySocketLevelingGems() {
 				plan = append(plan, "Sapphire")
 				sapphireCount--
 			}
+		}
+		return plan
+	}
+	buildHelmFallbackPlan := func(sockets int) []string {
+		if sockets <= 0 {
+			return nil
+		}
+		plan := make([]string, 0, sockets)
+		rubyCount := len(gemRanks("Ruby"))
+		sapphireCount := len(gemRanks("Sapphire"))
+		for len(plan) < sockets && rubyCount > 0 {
+			plan = append(plan, "Ruby")
+			rubyCount--
+		}
+		for len(plan) < sockets && sapphireCount > 0 {
+			plan = append(plan, "Sapphire")
+			sapphireCount--
 		}
 		return plan
 	}
@@ -627,14 +874,64 @@ func TrySocketLevelingGems() {
 				targetLoc = item.LocHead
 			}
 		}
-		predictedScore := predictedScoreWithAvailableGems(candidate, isShield, isArmor, isHelm, openSockets, gemRanks)
-		if !isPredictedGemUpgrade(candidate, predictedScore, minGemUpgradeScore) {
-			continue
-		}
 		gemPlan := buildGemPlan(isShield, isArmor, isHelm, openSockets)
 		if len(gemPlan) == 0 {
+			ctx.Logger.Debug("Leveling socket skipped candidate: no plan built",
+				"item", candidate.Name,
+				"unitID", candidate.UnitID,
+				"openSockets", openSockets,
+			)
 			continue
 		}
+		predictedScore := predictedScoreWithAvailableSocketables(candidate, isShield, isArmor, isHelm, openSockets, gemRanks, gemPlan)
+		if !isPredictedGemUpgrade(candidate, predictedScore, minGemUpgradeScore) {
+			if isHelm && slices.Contains(gemPlan, "RalRune") {
+				fallbackPlan := buildHelmFallbackPlan(openSockets)
+				if len(fallbackPlan) == 0 {
+					ctx.Logger.Debug("Leveling socket helm fallback unavailable after Ral plan scored too low",
+						"item", candidate.Name,
+						"unitID", candidate.UnitID,
+						"originalPlan", strings.Join(gemPlan, ","),
+					)
+				}
+				if len(fallbackPlan) > 0 {
+					fallbackPredicted := predictedScoreWithAvailableSocketables(candidate, isShield, isArmor, isHelm, openSockets, gemRanks, fallbackPlan)
+					if isPredictedGemUpgrade(candidate, fallbackPredicted, minGemUpgradeScore) {
+						ctx.Logger.Debug("Leveling socket switching helm plan after Ral candidate scored too low",
+							"item", candidate.Name,
+							"unitID", candidate.UnitID,
+							"originalPlan", strings.Join(gemPlan, ","),
+							"fallbackPlan", strings.Join(fallbackPlan, ","),
+						)
+						gemPlan = fallbackPlan
+						predictedScore = fallbackPredicted
+					} else {
+						ctx.Logger.Debug("Leveling socket helm fallback also scored too low",
+							"item", candidate.Name,
+							"unitID", candidate.UnitID,
+							"originalPlan", strings.Join(gemPlan, ","),
+							"fallbackPlan", strings.Join(fallbackPlan, ","),
+						)
+					}
+				}
+			}
+		}
+		if !isPredictedGemUpgrade(candidate, predictedScore, minGemUpgradeScore) {
+			ctx.Logger.Debug("Leveling socket skipped candidate: predicted upgrade too small",
+				"item", candidate.Name,
+				"unitID", candidate.UnitID,
+				"openSockets", openSockets,
+				"plan", strings.Join(gemPlan, ","),
+			)
+			continue
+		}
+		ctx.Logger.Debug("Leveling socket candidate selected",
+			"item", candidate.Name,
+			"unitID", candidate.UnitID,
+			"location", candidate.Location.LocationType,
+			"openSockets", openSockets,
+			"plan", strings.Join(gemPlan, ","),
+		)
 		wasEquipped := candidate.Location.LocationType == item.LocationEquipped
 		updatedCandidate := candidate
 		socketed := false
@@ -647,6 +944,10 @@ func TrySocketLevelingGems() {
 			}
 			if !ensureInventorySpaceForSocketing(updatedCandidate) {
 				if attemptedSell {
+					ctx.Logger.Debug("Leveling socket aborted after retry because inventory space is still unavailable",
+						"item", updatedCandidate.Name,
+						"unitID", updatedCandidate.UnitID,
+					)
 					break
 				}
 				attemptedSell = true
@@ -657,6 +958,10 @@ func TrySocketLevelingGems() {
 				}
 				ctx.RefreshInventory()
 				if !ensureInventorySpaceForSocketing(updatedCandidate) {
+					ctx.Logger.Debug("Leveling socket inventory space check failed after vendor sell",
+						"item", updatedCandidate.Name,
+						"unitID", updatedCandidate.UnitID,
+					)
 					break
 				}
 			}
@@ -664,19 +969,42 @@ func TrySocketLevelingGems() {
 			gemPlanIdx++
 			gem, ok := findBestGem(kind)
 			if !ok {
+				ctx.Logger.Debug("Leveling socket could not find planned socketable",
+					"item", updatedCandidate.Name,
+					"unitID", updatedCandidate.UnitID,
+					"planned", kind,
+				)
 				break
 			}
+			ctx.Logger.Debug("Leveling socket attempting insert",
+				"item", updatedCandidate.Name,
+				"unitID", updatedCandidate.UnitID,
+				"socketable", gem.Name,
+				"socketableUnitID", gem.UnitID,
+				"socketableLocation", gem.Location.LocationType,
+			)
 
 			updatedItem := updatedCandidate
 			if updatedCandidate.Location.LocationType != item.LocationEquipped {
 				updatedItem, ok = moveItemToInventory(updatedCandidate)
 				if !ok {
+					ctx.Logger.Debug("Leveling socket failed moving base item to inventory",
+						"item", updatedCandidate.Name,
+						"unitID", updatedCandidate.UnitID,
+						"location", updatedCandidate.Location.LocationType,
+					)
 					break
 				}
 				movedFromEquip = wasEquipped
 			}
 
 			if !insertGemIntoItem(gem, updatedItem) {
+				ctx.Logger.Debug("Leveling socket failed inserting socketable into item",
+					"item", updatedItem.Name,
+					"unitID", updatedItem.UnitID,
+					"socketable", gem.Name,
+					"socketableUnitID", gem.UnitID,
+				)
 				if movedFromEquip && targetLoc != item.LocationUnknown {
 					_ = EquipItem(updatedItem, targetLoc, item.LocationEquipped)
 					utils.Sleep(300)
@@ -688,6 +1016,10 @@ func TrySocketLevelingGems() {
 			ctx.RefreshInventory()
 			updatedAfter, found := ctx.Data.Inventory.FindByID(updatedItem.UnitID)
 			if !found {
+				ctx.Logger.Debug("Leveling socket lost track of base item after insert",
+					"item", updatedItem.Name,
+					"unitID", updatedItem.UnitID,
+				)
 				if movedFromEquip && targetLoc != item.LocationUnknown {
 					_ = EquipItem(updatedItem, targetLoc, item.LocationEquipped)
 					utils.Sleep(300)
@@ -698,6 +1030,11 @@ func TrySocketLevelingGems() {
 			updatedCandidate = updatedAfter
 			socketed = true
 			changed = true
+			ctx.Logger.Debug("Leveling socket inserted successfully",
+				"item", updatedAfter.Name,
+				"unitID", updatedAfter.UnitID,
+				"used", gem.Name,
+			)
 
 			if sockets, found := updatedAfter.FindStat(stat.NumSockets, 0); found {
 				newOpen := sockets.Value - len(updatedAfter.Sockets)
@@ -740,7 +1077,9 @@ func TrySocketLevelingGems() {
 		}
 	}
 
-	step.CloseAllMenus()
+	if err := step.CloseAllMenus(); err != nil {
+		ctx.Logger.Debug("Leveling socket final menu cleanup failed", "error", err)
+	}
 	if changed {
 		_ = AutoEquip()
 	}
@@ -799,7 +1138,7 @@ func isPredictedGemUpgrade(candidate data.Item, predicted map[item.LocationType]
 	return false
 }
 
-func predictedScoreWithAvailableGems(candidate data.Item, isShield, isArmor, isHelm bool, openSockets int, gemRanks func(kind string) []int) map[item.LocationType]float64 {
+func predictedScoreWithAvailableSocketables(candidate data.Item, isShield, isArmor, isHelm bool, openSockets int, gemRanks func(kind string) []int, socketPlan []string) map[item.LocationType]float64 {
 	if openSockets <= 0 {
 		return PlayerScore(candidate)
 	}
@@ -813,6 +1152,17 @@ func predictedScoreWithAvailableGems(candidate data.Item, isShield, isArmor, isH
 		diamondRanks := gemRanks("Diamond")
 		applyBestGemBonuses(bonusByStat, diamondRanks, openSockets, resByRank, stat.FireResist, stat.ColdResist, stat.LightningResist, stat.PoisonResist)
 	} else if isArmor || isHelm {
+		if isHelm && len(socketPlan) > 0 {
+			// Ral provides +30 fire resist in helms. The plan already reserves one spare rune.
+			plannedRals := 0
+			for _, planned := range socketPlan {
+				if planned == "RalRune" {
+					plannedRals++
+				}
+			}
+			bonusByStat[stat.FireResist] += plannedRals * 30
+			openSockets -= plannedRals
+		}
 		rubyRanks := gemRanks("Ruby")
 		if len(rubyRanks) > 0 {
 			used := applyBestGemBonuses(bonusByStat, rubyRanks, openSockets, lifeByRank, stat.MaxLife)
@@ -896,7 +1246,7 @@ func ensureInventorySpaceForSocketing(itm data.Item) bool {
 	if itm.Location.LocationType == item.LocationEquipped {
 		return true
 	}
-	if itm.Location.LocationType == item.LocationStash || itm.Location.LocationType == item.LocationSharedStash {
+	if itm.Location.LocationType == item.LocationStash || itm.Location.LocationType == item.LocationSharedStash || itm.Location.LocationType == item.LocationGemsTab || itm.Location.LocationType == item.LocationRunesTab {
 		return inventoryCanFitItem(itm)
 	}
 	return true
@@ -905,7 +1255,7 @@ func ensureInventorySpaceForSocketing(itm data.Item) bool {
 func moveItemToInventory(itm data.Item) (data.Item, bool) {
 	ctx := context.Get()
 	if itm.Location.LocationType != item.LocationEquipped {
-		if itm.Location.LocationType == item.LocationStash || itm.Location.LocationType == item.LocationSharedStash {
+		if itm.Location.LocationType == item.LocationStash || itm.Location.LocationType == item.LocationSharedStash || itm.Location.LocationType == item.LocationGemsTab || itm.Location.LocationType == item.LocationRunesTab {
 			if !ctx.Data.OpenMenus.Stash {
 				if err := OpenStash(); err != nil {
 					return data.Item{}, false
@@ -913,14 +1263,33 @@ func moveItemToInventory(itm data.Item) (data.Item, bool) {
 			}
 			if itm.Location.LocationType == item.LocationSharedStash {
 				SwitchStashTab(itm.Location.Page + 1)
+			} else if itm.Location.LocationType == item.LocationGemsTab {
+				SwitchStashTab(StashTabGems)
+			} else if itm.Location.LocationType == item.LocationRunesTab {
+				SwitchStashTab(StashTabRunes)
 			} else {
 				SwitchStashTab(1)
 			}
 			utils.Sleep(200)
+			knownInvItems := make(map[data.UnitID]struct{})
+			for _, invItem := range ctx.Data.Inventory.ByLocation(item.LocationInventory) {
+				knownInvItems[invItem.UnitID] = struct{}{}
+			}
 			screenPos := ui.GetScreenCoordsForItem(itm)
 			ctx.HID.ClickWithModifier(game.LeftButton, screenPos.X, screenPos.Y, game.CtrlKey)
 			utils.Sleep(300)
 			ctx.RefreshInventory()
+			if itm.Location.LocationType == item.LocationGemsTab || itm.Location.LocationType == item.LocationRunesTab {
+				for _, invItem := range ctx.Data.Inventory.ByLocation(item.LocationInventory) {
+					if _, known := knownInvItems[invItem.UnitID]; known {
+						continue
+					}
+					if invItem.Name == itm.Name {
+						return invItem, true
+					}
+				}
+				return data.Item{}, false
+			}
 			updated, found := ctx.Data.Inventory.FindByID(itm.UnitID)
 			if !found || updated.Location.LocationType != item.LocationInventory {
 				return data.Item{}, false
@@ -950,10 +1319,22 @@ func moveItemToInventory(itm data.Item) (data.Item, bool) {
 
 func insertGemIntoItem(gem data.Item, base data.Item) bool {
 	ctx := context.Get()
+	success := false
+	defer func() {
+		if success {
+			return
+		}
+		if err := step.CloseAllMenus(); err != nil {
+			ctx.Logger.Debug("Leveling socket cleanup failed after insert error", "error", err)
+		}
+		ctx.RefreshGameData()
+	}()
+
 	if gem.Location.LocationType != item.LocationInventory &&
 		gem.Location.LocationType != item.LocationStash &&
 		gem.Location.LocationType != item.LocationSharedStash &&
-		gem.Location.LocationType != item.LocationGemsTab {
+		gem.Location.LocationType != item.LocationGemsTab &&
+		gem.Location.LocationType != item.LocationRunesTab {
 		return false
 	}
 	if !ctx.Data.OpenMenus.Inventory {
@@ -962,13 +1343,17 @@ func insertGemIntoItem(gem data.Item, base data.Item) bool {
 		ctx.RefreshInventory()
 	}
 
-	if gem.Location.LocationType == item.LocationGemsTab {
+	if gem.Location.LocationType == item.LocationGemsTab || gem.Location.LocationType == item.LocationRunesTab {
 		if !ctx.Data.OpenMenus.Stash {
 			if err := OpenStash(); err != nil {
 				return false
 			}
 		}
-		SwitchStashTab(StashTabGems)
+		if gem.Location.LocationType == item.LocationRunesTab {
+			SwitchStashTab(StashTabRunes)
+		} else {
+			SwitchStashTab(StashTabGems)
+		}
 		utils.Sleep(200)
 
 		knownInvItems := make(map[data.UnitID]struct{})
@@ -1014,12 +1399,32 @@ func insertGemIntoItem(gem data.Item, base data.Item) bool {
 	}
 
 	gemPos := ui.GetScreenCoordsForItem(gem)
-	ctx.HID.Click(game.LeftButton, gemPos.X, gemPos.Y)
-	utils.Sleep(200)
+	pickedToCursor := false
+	for attempt := 0; attempt < 3; attempt++ {
+		ctx.HID.Click(game.LeftButton, gemPos.X, gemPos.Y)
+		utils.Sleep(200)
+		ctx.RefreshInventory()
+		for _, cursorItem := range ctx.Data.Inventory.ByLocation(item.LocationCursor) {
+			if cursorItem.UnitID == gem.UnitID || cursorItem.Name == gem.Name {
+				pickedToCursor = true
+				break
+			}
+		}
+		if pickedToCursor {
+			break
+		}
+	}
+	if !pickedToCursor {
+		return false
+	}
 
 	if base.Location.LocationType == item.LocationEquipped && ctx.Data.OpenMenus.Stash {
 		_ = CloseStash()
 		utils.Sleep(200)
+		ctx.RefreshGameData()
+		if ctx.Data.OpenMenus.Stash {
+			return false
+		}
 		if !ctx.Data.OpenMenus.Inventory {
 			ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
 			utils.Sleep(200)
@@ -1027,26 +1432,28 @@ func insertGemIntoItem(gem data.Item, base data.Item) bool {
 		ctx.RefreshInventory()
 	}
 
-	switch base.Location.LocationType {
-	case item.LocationInventory:
-		basePos := ui.GetScreenCoordsForItem(base)
-		ctx.HID.Click(game.LeftButton, basePos.X, basePos.Y)
-	case item.LocationEquipped:
-		slotCoords, found := getEquippedSlotCoords(base.Location.BodyLocation, ctx.Data.LegacyGraphics)
-		if !found {
+	for attempt := 0; attempt < 2; attempt++ {
+		switch base.Location.LocationType {
+		case item.LocationInventory:
+			basePos := ui.GetScreenCoordsForItem(base)
+			ctx.HID.Click(game.LeftButton, basePos.X, basePos.Y)
+		case item.LocationEquipped:
+			slotCoords, found := getEquippedSlotCoords(base.Location.BodyLocation, ctx.Data.LegacyGraphics)
+			if !found {
+				return false
+			}
+			ctx.HID.Click(game.LeftButton, slotCoords.X, slotCoords.Y)
+		default:
 			return false
 		}
-		ctx.HID.Click(game.LeftButton, slotCoords.X, slotCoords.Y)
-	default:
-		return false
+		utils.Sleep(250)
+		ctx.RefreshInventory()
+		if len(ctx.Data.Inventory.ByLocation(item.LocationCursor)) == 0 {
+			success = true
+			return true
+		}
 	}
-	utils.Sleep(250)
-	ctx.RefreshInventory()
 
-	if len(ctx.Data.Inventory.ByLocation(item.LocationCursor)) > 0 {
-		step.CloseAllMenus()
-		DropAndRecoverCursorItem()
-		return false
-	}
-	return true
+	DropAndRecoverCursorItem()
+	return false
 }

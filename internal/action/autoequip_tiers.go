@@ -113,7 +113,7 @@ var (
 			stat.PoisonResist:      0.5,
 			stat.MaxLife:           1.0,
 			stat.MaxMana:           1.0,
-			stat.FasterHitRecovery: 2.0,
+			stat.FasterHitRecovery: -2.0,
 			stat.Energy:            1.5,
 		},
 		data.Necromancer: {

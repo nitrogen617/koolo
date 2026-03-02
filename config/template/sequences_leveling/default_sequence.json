@@ -97,7 +97,8 @@
             },
             {
                 "run": "countess",
-                "maxLevel": 9
+                "maxLevel": 15,
+                "skipCountessWhenStealthReady": true
             },
             {
                 "run": "andariel",
@@ -240,12 +241,15 @@
             {
                 "run": "countess",
                 "maxLevel": 59,
-                "countessNightmareRunewords": ["Spirit", "Insight", "Lore"]
+                "countessNightmareRunewords": [
+                    "Spirit",
+                    "Insight",
+                    "Lore"
+                ]
             },
             {
                 "run": "countess",
-                "minLevel": 70,
-                "countessNightmareRunewords": ["Spirit", "Insight", "Lore"]
+                "minLevel": 70
             },
             {
                 "run": "diablo",

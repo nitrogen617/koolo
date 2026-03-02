@@ -87,12 +87,15 @@ func TryBuyAndConsumeStaminaPots() {
 		if staminaPot, found := ctx.Data.Inventory.Find(item.Name("StaminaPotion"), item.LocationVendor); found {
 			town.BuyItem(staminaPot, buyCount)
 		}
-		step.CloseAllMenus()
+		if err := step.CloseAllMenus(); err != nil {
+			ctx.Logger.Debug("Failed closing vendor menus after buying stamina potions", "error", err)
+			return
+		}
 	}
 
-	if !ctx.Data.OpenMenus.Inventory {
-		ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-		utils.Sleep(200)
+	if err := step.OpenInventory(); err != nil {
+		ctx.Logger.Debug("Failed opening inventory to consume stamina potions", "error", err)
+		return
 	}
 
 	ctx.RefreshInventory()
@@ -108,7 +111,9 @@ func TryBuyAndConsumeStaminaPots() {
 		consumeCount = availableCount
 	}
 	if consumeCount == 0 {
-		step.CloseAllMenus()
+		if err := step.CloseAllMenus(); err != nil {
+			ctx.Logger.Debug("Failed closing inventory after stamina potion check", "error", err)
+		}
 		return
 	}
 
@@ -122,7 +127,10 @@ func TryBuyAndConsumeStaminaPots() {
 		ctx.HID.Click(game.RightButton, screenPos.X, screenPos.Y)
 		utils.Sleep(150)
 	}
-	step.CloseAllMenus()
+	if err := step.CloseAllMenus(); err != nil {
+		ctx.Logger.Debug("Failed closing inventory after consuming stamina potions", "error", err)
+		return
+	}
 	if consumeCount > 0 {
 		ctx.LastStaminaPotUse = time.Now()
 		ctx.StaminaPotCooldown = time.Duration(consumeCount) * 30 * time.Second
@@ -952,9 +960,13 @@ func TrySocketLevelingGems() {
 				}
 				attemptedSell = true
 				VendorRefill(VendorRefillOpts{SellJunk: true})
-				if !ctx.Data.OpenMenus.Inventory {
-					ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-					utils.Sleep(200)
+				if err := step.OpenInventory(); err != nil {
+					ctx.Logger.Debug("Leveling socket failed opening inventory after vendor sell",
+						"item", updatedCandidate.Name,
+						"unitID", updatedCandidate.UnitID,
+						"error", err,
+					)
+					break
 				}
 				ctx.RefreshInventory()
 				if !ensureInventorySpaceForSocketing(updatedCandidate) {
@@ -1079,6 +1091,7 @@ func TrySocketLevelingGems() {
 
 	if err := step.CloseAllMenus(); err != nil {
 		ctx.Logger.Debug("Leveling socket final menu cleanup failed", "error", err)
+		return
 	}
 	if changed {
 		_ = AutoEquip()
@@ -1299,8 +1312,9 @@ func moveItemToInventory(itm data.Item) (data.Item, bool) {
 		return itm, true
 	}
 	if !ctx.Data.OpenMenus.Inventory {
-		ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-		utils.Sleep(200)
+		if err := step.OpenInventory(); err != nil {
+			return data.Item{}, false
+		}
 		ctx.RefreshInventory()
 	}
 	slotCoords, found := getEquippedSlotCoords(itm.Location.BodyLocation, ctx.Data.LegacyGraphics)
@@ -1338,8 +1352,9 @@ func insertGemIntoItem(gem data.Item, base data.Item) bool {
 		return false
 	}
 	if !ctx.Data.OpenMenus.Inventory {
-		ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-		utils.Sleep(200)
+		if err := step.OpenInventory(); err != nil {
+			return false
+		}
 		ctx.RefreshInventory()
 	}
 
@@ -1426,8 +1441,9 @@ func insertGemIntoItem(gem data.Item, base data.Item) bool {
 			return false
 		}
 		if !ctx.Data.OpenMenus.Inventory {
-			ctx.HID.PressKeyBinding(ctx.Data.KeyBindings.Inventory)
-			utils.Sleep(200)
+			if err := step.OpenInventory(); err != nil {
+				return false
+			}
 		}
 		ctx.RefreshInventory()
 	}

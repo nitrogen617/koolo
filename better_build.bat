@@ -1,7 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Preserve UI and critical packages
+:: Preserve only packages that break under obfuscation
+:: server: html/template reflection + JSON field names
+:: event: type switches in non-garbled consumers (server, discord)
 set GOGARBLE=!github.com/hectorgimenez/koolo/internal/server*,!github.com/hectorgimenez/koolo/internal/event*,!github.com/inkeliz/gowebview*
 
 :: Required versions
@@ -262,8 +264,10 @@ if not "!COMMIT_TIME!"=="" set "LDFLAGS=!LDFLAGS! -X 'github.com/hectorgimenez/k
 
 :: Build an obfuscated Koolo binary
 call :print_step "Compiling Obfuscated Koolo executable"
+call :print_step "Generating per-build noise..."
+powershell -ExecutionPolicy Bypass -File "%~dp0generate_noise.ps1"
 (
-    garble -literals=false -seed=random build -a -trimpath -tags static --ldflags "!LDFLAGS!" -o "%OUTPUT_EXE%" ./cmd/koolo 2>&1
+    garble -literals=false -seed=random build -a -trimpath -tags "static buildnoisegen" --ldflags "!LDFLAGS!" -o "%OUTPUT_EXE%" ./cmd/koolo 2>&1
 ) > garble.log
 set "GARBLE_EXIT_CODE=!errorlevel!"
 
@@ -505,3 +509,4 @@ del test_write.tmp >nul 2>&1
 
 call :print_success "Environment validation completed"
 goto :eof
+

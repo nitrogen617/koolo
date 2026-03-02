@@ -1,6 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Preserve only packages that break under obfuscation
+:: server: html/template reflection + JSON field names
+:: event: type switches in non-garbled consumers (server, discord)
+set GOGARBLE=!github.com/hectorgimenez/koolo/internal/server*,!github.com/hectorgimenez/koolo/internal/event*,!github.com/inkeliz/gowebview*
+
 echo Start building Koolo
 echo Cleaning up previous artifacts...
 ::if exist build rmdir /s /q build > NUL || goto :error
@@ -15,12 +20,15 @@ set "COMMIT_TIME="
 for /f "delims=" %%h in ('git rev-parse HEAD 2^>nul') do set "COMMIT_HASH=%%h"
 for /f "delims=" %%t in ('git show -s --format^=%%cI HEAD 2^>nul') do set "COMMIT_TIME=%%t"
 
+echo Generating per-build noise...
+powershell -ExecutionPolicy Bypass -File "%~dp0generate_noise.ps1"
+
 echo Building Koolo binary...
 if "%1"=="" (set VERSION=dev) else (set VERSION=%1)
 set "LDFLAGS=-s -w -H windowsgui -X 'main.buildID=%BUILD_ID%' -X 'main.buildTime=%BUILD_TIME%' -X 'github.com/hectorgimenez/koolo/internal/config.Version=%VERSION%'"
 if not "!COMMIT_HASH!"=="" set "LDFLAGS=!LDFLAGS! -X 'github.com/hectorgimenez/koolo/internal/updater.buildCommitHash=!COMMIT_HASH!'"
 if not "!COMMIT_TIME!"=="" set "LDFLAGS=!LDFLAGS! -X 'github.com/hectorgimenez/koolo/internal/updater.buildCommitTime=!COMMIT_TIME!'"
-garble -literals -tiny -seed=random build -a -trimpath -tags static --ldflags "!LDFLAGS!" -o "build\%BUILD_ID%.exe" ./cmd/koolo > NUL || goto :error
+garble -literals -tiny -seed=random build -a -trimpath -tags "static buildnoisegen" --ldflags "!LDFLAGS!" -o "build\%BUILD_ID%.exe" ./cmd/koolo > NUL || goto :error
 
 echo Copying assets...
 mkdir build\config > NUL || goto :error
@@ -37,3 +45,4 @@ if %errorlevel% neq 0 (
     echo Error occurred #%errorlevel%.
     exit /b %errorlevel%
 )
+

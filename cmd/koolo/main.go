@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"math/rand"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	sloggger "github.com/hectorgimenez/koolo/cmd/koolo/log"
 	"github.com/hectorgimenez/koolo/internal/bot"
+	"github.com/hectorgimenez/koolo/internal/buildnoise"
 	"github.com/hectorgimenez/koolo/internal/config"
 	"github.com/hectorgimenez/koolo/internal/event"
 	"github.com/hectorgimenez/koolo/internal/remote/discord"
@@ -32,6 +34,31 @@ var (
 	buildID   string
 	buildTime string
 )
+
+// windowTitles is a pool of plausible-looking application names used to
+// rotate the Koolo window title at runtime, reducing its visibility.
+var windowTitles = []string{
+	"Microsoft Visual Studio Code",
+	"Windows PowerShell",
+	"File Explorer",
+	"Notepad",
+	"Calculator",
+	"Resource Monitor",
+	"System Information",
+	"Microsoft Edge",
+	"Task Scheduler",
+	"Performance Monitor",
+	"Event Viewer",
+	"Device Manager",
+	"Disk Management",
+	"Services",
+	"Registry Editor",
+	"Command Prompt",
+	"Windows Security",
+	"Settings",
+	"Control Panel",
+	"Paint",
+}
 
 // wrapWithRecover wraps a function with panic recovery logic
 func wrapWithRecover(logger *slog.Logger, f func() error) func() error {
@@ -52,6 +79,7 @@ func main() {
 
 	_ = buildID
 	_ = buildTime
+	_ = buildnoise.Nonce()
 
 	err := config.Load()
 	if err != nil {
@@ -202,6 +230,24 @@ func main() {
 							}
 						}
 					}
+				}
+			}
+		}()
+
+		// 4. Randomly rotate window title to avoid identification
+		go func() {
+			handle := w.Window()
+			for {
+				titlePtr, err := syscall.UTF16PtrFromString(windowTitles[rand.Intn(len(windowTitles))])
+				if err == nil {
+					winproc.SetWindowText.Call(handle, uintptr(unsafe.Pointer(titlePtr)))
+				}
+				// Random delay between 20 and 90 seconds
+				delay := time.Duration(20+rand.Intn(71)) * time.Second
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(delay):
 				}
 			}
 		}()

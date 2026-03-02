@@ -1735,6 +1735,10 @@ type ConfigUpdateOptions struct {
 	Identity            bool `json:"identity"` // Name, Auth, etc.
 	Health              bool `json:"health"`
 	Runs                bool `json:"runs"`
+	BackToTown          bool `json:"backToTown"`
+	InventoryLock       bool `json:"inventoryLock"`
+	BeltLayout          bool `json:"beltLayout"`
+	Gambling            bool `json:"gambling"`
 	PacketCasting       bool `json:"packetCasting"`
 	CubeRecipes         bool `json:"cubeRecipes"`
 	RunewordMaker       bool `json:"runewordMaker"`
@@ -1750,6 +1754,13 @@ type ConfigUpdateOptions struct {
 }
 
 func (s *HttpServer) updateConfigFromForm(values url.Values, cfg *config.CharacterCfg, sections ConfigUpdateOptions, runDetailTargets []string) error {
+	applyGeneralDetails := sections.General
+	applyRunsOptions := sections.Runs
+	applyBackToTown := sections.BackToTown
+	applyInventoryLock := sections.InventoryLock
+	applyBeltLayout := sections.BeltLayout
+	applyGambling := sections.Gambling
+
 	// Identity / Basic Settings
 	if sections.Identity {
 		if v := values.Get("maxGameLength"); v != "" {
@@ -1962,89 +1973,97 @@ func (s *HttpServer) updateConfigFromForm(values url.Values, cfg *config.Charact
 			cfg.Game.StopLevelingAt, _ = strconv.Atoi(v)
 		}
 
-		if sections.GeneralExtras {
-			cfg.Character.UseSwapForBuffs = values.Has("useSwapForBuffs")
-			cfg.Character.BuffOnNewArea = values.Has("characterBuffOnNewArea")
-			cfg.Character.BuffAfterWP = values.Has("characterBuffAfterWP")
-
-			// Process ClearPathDist - only relevant when teleport is disabled
-			if !cfg.Character.UseTeleport {
-				clearPathDist, err := strconv.Atoi(values.Get("clearPathDist"))
-				if err == nil && clearPathDist >= 0 && clearPathDist <= 30 {
-					cfg.Character.ClearPathDist = clearPathDist
-				} else {
-					// Set default value if invalid
-					cfg.Character.ClearPathDist = 7
-				}
-			} else {
-				cfg.Character.ClearPathDist = 7
-			}
-
-			// Inventory Lock
-			for y, row := range cfg.Inventory.InventoryLock {
-				for x := range row {
-					if values.Has(fmt.Sprintf("inventoryLock[%d][%d]", y, x)) {
-						cfg.Inventory.InventoryLock[y][x] = 0
-					} else {
-						cfg.Inventory.InventoryLock[y][x] = 1
-					}
-				}
-			}
-
-			// Belt Columns
-			if cols, ok := values["inventoryBeltColumns[]"]; ok {
-				copy(cfg.Inventory.BeltColumns[:], cols)
-			}
-
-			if v := values.Get("healingPotionCount"); v != "" {
-				cfg.Inventory.HealingPotionCount, _ = strconv.Atoi(v)
-			}
-			if v := values.Get("manaPotionCount"); v != "" {
-				cfg.Inventory.ManaPotionCount, _ = strconv.Atoi(v)
-			}
-			if v := values.Get("rejuvPotionCount"); v != "" {
-				cfg.Inventory.RejuvPotionCount, _ = strconv.Atoi(v)
-			}
-
-			cfg.Game.CreateLobbyGames = values.Has("createLobbyGames")
-			cfg.Game.IsNonLadderChar = values.Has("isNonLadderChar")
-			cfg.Game.IsHardCoreChar = values.Has("isHardCoreChar")
-			cfg.Game.Difficulty = difficulty.Difficulty(values.Get("gameDifficulty"))
-			cfg.Game.RandomizeRuns = values.Has("gameRandomizeRuns")
-
-			// Back To Town Settings
-			cfg.BackToTown.NoHpPotions = values.Has("noHpPotions")
-			cfg.BackToTown.NoMpPotions = values.Has("noMpPotions")
-			cfg.BackToTown.MercDied = values.Has("mercDied")
-			cfg.BackToTown.EquipmentBroken = values.Has("equipmentBroken")
-
-			// Companion
-			cfg.Companion.Enabled = values.Has("companionEnabled")
-			cfg.Companion.Leader = values.Has("companionLeader")
-			cfg.Companion.LeaderName = values.Get("companionLeaderName")
-			cfg.Companion.GameNameTemplate = values.Get("companionGameNameTemplate")
-			cfg.Companion.GamePassword = values.Get("companionGamePassword")
-
-			// Gambling
-			cfg.Gambling.Enabled = values.Has("gamblingEnabled")
-			if raw := strings.TrimSpace(values.Get("gamblingItems")); raw != "" {
-				parts := strings.Split(raw, ",")
-				items := make([]string, 0, len(parts))
-				for _, p := range parts {
-					if p = strings.TrimSpace(p); p != "" {
-						items = append(items, p)
-					}
-				}
-				cfg.Gambling.Items = items
-			} else {
-				cfg.Gambling.Items = []string{}
-			}
-		}
-
 		// Class-specific options are only updated when identity is explicitly updated.
 		if sections.Identity {
 			s.updateClassSpecificConfig(values, cfg)
 		}
+	}
+
+	if applyGeneralDetails {
+		cfg.Character.UseSwapForBuffs = values.Has("useSwapForBuffs")
+		cfg.Character.BuffOnNewArea = values.Has("characterBuffOnNewArea")
+		cfg.Character.BuffAfterWP = values.Has("characterBuffAfterWP")
+
+		// ClearPathDist is only meaningful when teleport is unavailable.
+		if !cfg.Character.UseTeleport {
+			clearPathDist, err := strconv.Atoi(values.Get("clearPathDist"))
+			if err == nil && clearPathDist >= 0 && clearPathDist <= 30 {
+				cfg.Character.ClearPathDist = clearPathDist
+			} else {
+				cfg.Character.ClearPathDist = 7
+			}
+		} else {
+			cfg.Character.ClearPathDist = 7
+		}
+	}
+
+	if applyInventoryLock {
+		for y, row := range cfg.Inventory.InventoryLock {
+			for x := range row {
+				if values.Has(fmt.Sprintf("inventoryLock[%d][%d]", y, x)) {
+					cfg.Inventory.InventoryLock[y][x] = 0
+				} else {
+					cfg.Inventory.InventoryLock[y][x] = 1
+				}
+			}
+		}
+	}
+
+	if applyBeltLayout {
+		if cols, ok := values["inventoryBeltColumns[]"]; ok {
+			copy(cfg.Inventory.BeltColumns[:], cols)
+		}
+
+		if v := values.Get("healingPotionCount"); v != "" {
+			cfg.Inventory.HealingPotionCount, _ = strconv.Atoi(v)
+		}
+		if v := values.Get("manaPotionCount"); v != "" {
+			cfg.Inventory.ManaPotionCount, _ = strconv.Atoi(v)
+		}
+		if v := values.Get("rejuvPotionCount"); v != "" {
+			cfg.Inventory.RejuvPotionCount, _ = strconv.Atoi(v)
+		}
+	}
+
+	if applyBackToTown {
+		cfg.BackToTown.NoHpPotions = values.Has("noHpPotions")
+		cfg.BackToTown.NoMpPotions = values.Has("noMpPotions")
+		cfg.BackToTown.MercDied = values.Has("mercDied")
+		cfg.BackToTown.EquipmentBroken = values.Has("equipmentBroken")
+	}
+
+	if applyGambling {
+		cfg.Gambling.Enabled = values.Has("gamblingEnabled")
+		if raw := strings.TrimSpace(values.Get("gamblingItems")); raw != "" {
+			parts := strings.Split(raw, ",")
+			items := make([]string, 0, len(parts))
+			for _, p := range parts {
+				if p = strings.TrimSpace(p); p != "" {
+					items = append(items, p)
+				}
+			}
+			cfg.Gambling.Items = items
+		} else {
+			cfg.Gambling.Items = []string{}
+		}
+	}
+
+	if applyRunsOptions {
+		cfg.Game.RandomizeRuns = values.Has("gameRandomizeRuns")
+	}
+
+	if sections.GeneralExtras {
+		cfg.Game.CreateLobbyGames = values.Has("createLobbyGames")
+		cfg.Game.IsNonLadderChar = values.Has("isNonLadderChar")
+		cfg.Game.IsHardCoreChar = values.Has("isHardCoreChar")
+		cfg.Game.Difficulty = difficulty.Difficulty(values.Get("gameDifficulty"))
+
+		// Companion remains under the legacy GeneralExtras umbrella for compatibility.
+		cfg.Companion.Enabled = values.Has("companionEnabled")
+		cfg.Companion.Leader = values.Has("companionLeader")
+		cfg.Companion.LeaderName = values.Get("companionLeaderName")
+		cfg.Companion.GameNameTemplate = values.Get("companionGameNameTemplate")
+		cfg.Companion.GamePassword = values.Get("companionGamePassword")
 	}
 
 	// Packet Casting

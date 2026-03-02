@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', function () {
         health: '',
         merc: '',
         runs: '',
+        backToTown: '',
+        inventoryLock: '',
+        beltLayout: '',
+        gambling: '',
         packet: '',
         cube: '',
         general: '',
@@ -68,6 +72,10 @@ document.addEventListener('DOMContentLoaded', function () {
         health: false,
         merc: false,
         runs: false,
+        backToTown: false,
+        inventoryLock: false,
+        beltLayout: false,
+        gambling: false,
         packet: false,
         cube: false,
         general: false,
@@ -90,6 +98,10 @@ document.addEventListener('DOMContentLoaded', function () {
         'sectionHealth',
         'sectionMerc',
         'sectionRuns',
+        'sectionBackToTown',
+        'sectionInventoryLock',
+        'sectionBeltLayout',
+        'sectionGambling',
         'sectionPacketCasting',
         'sectionCubeRecipes',
         'sectionRunewordMaker',
@@ -209,8 +221,55 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function snapshotRunsState() {
-        const runsInput = document.getElementById('gameRuns');
-        return runsInput ? (runsInput.value || '') : '';
+        const enabledRunItems = document.querySelectorAll('#enabled_runs li');
+        let runs = '';
+        if (enabledRunItems.length > 0) {
+            runs = JSON.stringify(Array.from(enabledRunItems).map((item) => item.getAttribute('value') || ''));
+        } else {
+            const runsInput = document.getElementById('gameRuns');
+            runs = runsInput ? (runsInput.value || '') : '';
+        }
+        const randomizeRuns = !!document.querySelector('input[name="gameRandomizeRuns"]')?.checked;
+        return JSON.stringify({
+            runs,
+            randomizeRuns,
+        });
+    }
+
+    function snapshotBackToTownState() {
+        const state = {
+            noHpPotions: !!document.querySelector('input[name="noHpPotions"]')?.checked,
+            noMpPotions: !!document.querySelector('input[name="noMpPotions"]')?.checked,
+            mercDied: !!document.querySelector('input[name="mercDied"]')?.checked,
+            equipmentBroken: !!document.querySelector('input[name="equipmentBroken"]')?.checked,
+        };
+        return JSON.stringify(state);
+    }
+
+    function snapshotInventoryLockState() {
+        const inputs = document.querySelectorAll('input[name^="inventoryLock["]');
+        const values = Array.from(inputs).map((input) => (input.checked ? '1' : '0'));
+        return JSON.stringify(values);
+    }
+
+    function snapshotBeltLayoutState() {
+        const beltColumns = Array.from(document.querySelectorAll('select[name="inventoryBeltColumns[]"]'))
+            .map((select) => select.value || '');
+        const state = {
+            beltColumns,
+            healingPotionCount: document.querySelector('input[name="healingPotionCount"]')?.value || '',
+            manaPotionCount: document.querySelector('input[name="manaPotionCount"]')?.value || '',
+            rejuvPotionCount: document.querySelector('input[name="rejuvPotionCount"]')?.value || '',
+        };
+        return JSON.stringify(state);
+    }
+
+    function snapshotGamblingState() {
+        const state = {
+            gamblingEnabled: !!document.querySelector('input[name="gamblingEnabled"]')?.checked,
+            gamblingItems: document.querySelector('input[name="gamblingItems"]')?.value || '',
+        };
+        return JSON.stringify(state);
     }
 
     function snapshotPacketState() {
@@ -263,10 +322,15 @@ document.addEventListener('DOMContentLoaded', function () {
             useCentralizedPickit: boolVal('useCentralizedPickit'),
             interactWithShrines: boolVal('interactWithShrines'),
             interactWithChests: boolVal('interactWithChests'),
+            interactWithSuperChests: boolVal('interactWithSuperChests'),
+            characterBuffOnNewArea: boolVal('characterBuffOnNewArea'),
+            characterBuffAfterWP: boolVal('characterBuffAfterWP'),
+            useSwapForBuffs: boolVal('useSwapForBuffs'),
             stopLevelingAt: inputVal('stopLevelingAt'),
             gameMinGoldPickupThreshold: inputVal('gameMinGoldPickupThreshold'),
             useCainIdentify: boolVal('useCainIdentify'),
             disableIdentifyTome: boolVal('game.disableIdentifyTome'),
+            clearPathDist: inputVal('clearPathDist'),
         };
         return JSON.stringify(state);
     }
@@ -329,6 +393,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const healthCheckbox = document.getElementById('sectionHealth');
         const mercCheckbox = document.getElementById('sectionMerc');
         const runCheckbox = document.getElementById('sectionRuns');
+        const backToTownCheckbox = document.getElementById('sectionBackToTown');
+        const inventoryLockCheckbox = document.getElementById('sectionInventoryLock');
+        const beltLayoutCheckbox = document.getElementById('sectionBeltLayout');
+        const gamblingCheckbox = document.getElementById('sectionGambling');
         const packetCheckbox = document.getElementById('sectionPacketCasting');
         const cubeCheckbox = document.getElementById('sectionCubeRecipes');
         const generalCheckbox = document.getElementById('sectionGeneral');
@@ -340,6 +408,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const healthLabelSpan = healthCheckbox && healthCheckbox.nextElementSibling;
         const mercLabelSpan = mercCheckbox && mercCheckbox.nextElementSibling;
         const runLabelSpan = runCheckbox && runCheckbox.nextElementSibling;
+        const backToTownLabelSpan = backToTownCheckbox && backToTownCheckbox.nextElementSibling;
+        const inventoryLockLabelSpan = inventoryLockCheckbox && inventoryLockCheckbox.nextElementSibling;
+        const beltLayoutLabelSpan = beltLayoutCheckbox && beltLayoutCheckbox.nextElementSibling;
+        const gamblingLabelSpan = gamblingCheckbox && gamblingCheckbox.nextElementSibling;
         const packetLabelSpan = packetCheckbox && packetCheckbox.nextElementSibling;
         const cubeLabelSpan = cubeCheckbox && cubeCheckbox.nextElementSibling;
         const generalLabelSpan = generalCheckbox && generalCheckbox.nextElementSibling;
@@ -359,6 +431,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 runLabelSpan.classList.add('section-dirty');
             } else {
                 runLabelSpan.classList.remove('section-dirty');
+            }
+        }
+        if (backToTownLabelSpan) {
+            if (sectionDirty.backToTown) {
+                backToTownLabelSpan.classList.add('section-dirty');
+            } else {
+                backToTownLabelSpan.classList.remove('section-dirty');
+            }
+        }
+        if (inventoryLockLabelSpan) {
+            if (sectionDirty.inventoryLock) {
+                inventoryLockLabelSpan.classList.add('section-dirty');
+            } else {
+                inventoryLockLabelSpan.classList.remove('section-dirty');
+            }
+        }
+        if (beltLayoutLabelSpan) {
+            if (sectionDirty.beltLayout) {
+                beltLayoutLabelSpan.classList.add('section-dirty');
+            } else {
+                beltLayoutLabelSpan.classList.remove('section-dirty');
+            }
+        }
+        if (gamblingLabelSpan) {
+            if (sectionDirty.gambling) {
+                gamblingLabelSpan.classList.add('section-dirty');
+            } else {
+                gamblingLabelSpan.classList.remove('section-dirty');
             }
         }
         if (mercLabelSpan) {
@@ -436,6 +536,30 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshSectionDirtyIndicators();
     }
 
+    function updateBackToTownDirty() {
+        const current = snapshotBackToTownState();
+        sectionDirty.backToTown = current !== initialSectionState.backToTown;
+        refreshSectionDirtyIndicators();
+    }
+
+    function updateInventoryLockDirty() {
+        const current = snapshotInventoryLockState();
+        sectionDirty.inventoryLock = current !== initialSectionState.inventoryLock;
+        refreshSectionDirtyIndicators();
+    }
+
+    function updateBeltLayoutDirty() {
+        const current = snapshotBeltLayoutState();
+        sectionDirty.beltLayout = current !== initialSectionState.beltLayout;
+        refreshSectionDirtyIndicators();
+    }
+
+    function updateGamblingDirty() {
+        const current = snapshotGamblingState();
+        sectionDirty.gambling = current !== initialSectionState.gambling;
+        refreshSectionDirtyIndicators();
+    }
+
     function updatePacketDirty() {
         const current = snapshotPacketState();
         sectionDirty.packet = current !== initialSectionState.packet;
@@ -475,6 +599,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize snapshots
     initialSectionState.health = snapshotHealthState();
     initialSectionState.merc = snapshotMercState();
+    initialSectionState.runs = snapshotRunsState();
+    initialSectionState.backToTown = snapshotBackToTownState();
+    initialSectionState.inventoryLock = snapshotInventoryLockState();
+    initialSectionState.beltLayout = snapshotBeltLayoutState();
+    initialSectionState.gambling = snapshotGamblingState();
     initialSectionState.packet = snapshotPacketState();
     initialSectionState.cube = snapshotCubeState();
     initialSectionState.general = snapshotGeneralState();
@@ -537,6 +666,22 @@ document.addEventListener('DOMContentLoaded', function () {
             + '  <label>'
             + '    <input type="checkbox" id="sectionRuns">'
             + '    <span>Run settings</span>'
+            + '  </label>'
+            + '  <label>'
+            + '    <input type="checkbox" id="sectionBackToTown">'
+            + '    <span>Back to town</span>'
+            + '  </label>'
+            + '  <label>'
+            + '    <input type="checkbox" id="sectionInventoryLock">'
+            + '    <span>Inventory lock</span>'
+            + '  </label>'
+            + '  <label>'
+            + '    <input type="checkbox" id="sectionBeltLayout">'
+            + '    <span>Belt layout</span>'
+            + '  </label>'
+            + '  <label>'
+            + '    <input type="checkbox" id="sectionGambling">'
+            + '    <span>Gambling</span>'
             + '  </label>'
             + '  <label>'
             + '    <input type="checkbox" id="sectionPacketCasting">'
@@ -837,10 +982,34 @@ document.addEventListener('DOMContentLoaded', function () {
         'useCentralizedPickit',
         'interactWithShrines',
         'interactWithChests',
+        'interactWithSuperChests',
+        'characterBuffOnNewArea',
+        'characterBuffAfterWP',
+        'useSwapForBuffs',
         'stopLevelingAt',
         'gameMinGoldPickupThreshold',
         'useCainIdentify',
         'game.disableIdentifyTome',
+        'clearPathDist',
+    ]);
+
+    const BACK_TO_TOWN_FIELD_NAMES = new Set([
+        'noHpPotions',
+        'noMpPotions',
+        'mercDied',
+        'equipmentBroken',
+    ]);
+
+    const BELT_LAYOUT_FIELD_NAMES = new Set([
+        'inventoryBeltColumns[]',
+        'healingPotionCount',
+        'manaPotionCount',
+        'rejuvPotionCount',
+    ]);
+
+    const GAMBLING_FIELD_NAMES = new Set([
+        'gamblingEnabled',
+        'gamblingItems',
     ]);
 
     const CLIENT_FIELD_NAMES = new Set([
@@ -857,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('change', function (event) {
         const target = event.target;
-        if (!(target instanceof HTMLInputElement)) {
+        if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) {
             return;
         }
 
@@ -868,6 +1037,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (MERC_FIELD_NAMES.has(target.name)) {
             updateMercDirty();
+            return;
+        }
+
+        if (target.name === 'gameRandomizeRuns') {
+            updateRunsDirty();
             return;
         }
 
@@ -883,6 +1057,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (GENERAL_FIELD_NAMES.has(target.name)) {
             updateGeneralDirty();
+            return;
+        }
+
+        if (BACK_TO_TOWN_FIELD_NAMES.has(target.name)) {
+            updateBackToTownDirty();
+            return;
+        }
+
+        if (target.name && target.name.startsWith('inventoryLock[')) {
+            updateInventoryLockDirty();
+            return;
+        }
+
+        if (BELT_LAYOUT_FIELD_NAMES.has(target.name)) {
+            updateBeltLayoutDirty();
+            return;
+        }
+
+        if (GAMBLING_FIELD_NAMES.has(target.name)) {
+            updateGamblingDirty();
             return;
         }
 
@@ -937,6 +1131,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const healthCheckbox = document.getElementById('sectionHealth');
         const mercCheckbox = document.getElementById('sectionMerc');
         const runsCheckbox = document.getElementById('sectionRuns');
+        const backToTownCheckbox = document.getElementById('sectionBackToTown');
+        const inventoryLockCheckbox = document.getElementById('sectionInventoryLock');
+        const beltLayoutCheckbox = document.getElementById('sectionBeltLayout');
+        const gamblingCheckbox = document.getElementById('sectionGambling');
         const packetCheckbox = document.getElementById('sectionPacketCasting');
         const cubeCheckbox = document.getElementById('sectionCubeRecipes');
         const runewordCheckbox = document.getElementById('sectionRunewordMaker');
@@ -951,6 +1149,10 @@ document.addEventListener('DOMContentLoaded', function () {
             health: !!(healthCheckbox && healthCheckbox.checked),
             merc: !!(mercCheckbox && mercCheckbox.checked),
             runs: !!(runsCheckbox && runsCheckbox.checked),
+            backToTown: !!(backToTownCheckbox && backToTownCheckbox.checked),
+            inventoryLock: !!(inventoryLockCheckbox && inventoryLockCheckbox.checked),
+            beltLayout: !!(beltLayoutCheckbox && beltLayoutCheckbox.checked),
+            gambling: !!(gamblingCheckbox && gamblingCheckbox.checked),
             packetCasting: !!(packetCheckbox && packetCheckbox.checked),
             cubeRecipes: !!(cubeCheckbox && cubeCheckbox.checked),
             runewordMaker: !!(runewordCheckbox && runewordCheckbox.checked),

@@ -2134,7 +2134,10 @@ document.addEventListener('click', e => {
         .map(tr => tr.cells[col]?.querySelector('input[type="checkbox"]'))
         .filter(Boolean);
     const allChecked = checkboxes.every(cb => cb.checked);
-    checkboxes.forEach(cb => cb.checked = !allChecked);
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 });
 </script>
 </body>

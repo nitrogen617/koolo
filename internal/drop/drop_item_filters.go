@@ -132,6 +132,17 @@ var gemTypes = map[string]struct{}{
 	item.TypeQuest:    {}, // quest items should never be Droppered via quality-only filters
 }
 
+var potionTypes = map[string]struct{}{
+	item.TypePotion:         {},
+	item.TypeHealingPotion:  {},
+	item.TypeManaPotion:     {},
+	item.TypeRejuvPotion:    {},
+	item.TypeStaminaPotion:  {},
+	item.TypeAntidotePotion: {},
+	item.TypeThawingPotion:  {},
+	item.TypeMissilePotion:  {},
+}
+
 func isRuneOrGemType(t string) bool {
 	l := strings.ToLower(t)
 	if l == strings.ToLower(item.TypeRune) {
@@ -141,6 +152,12 @@ func isRuneOrGemType(t string) bool {
 		return true
 	}
 	return false
+}
+
+func isPotionType(t string) bool {
+	l := strings.ToLower(t)
+	_, ok := potionTypes[l]
+	return ok
 }
 
 // NewContextFilters initializes an empty filter state for a single supervisor.
@@ -180,7 +197,7 @@ func (s *ContextFilters) ShouldDropperItem(name string, quality item.Quality, it
 			if s.qualityGroupAllowed("runeword") {
 				qualityMatch = true
 			}
-		} else if s.qualityAllowed(quality) && !isRuneOrGem(name) && !isRuneOrGemType(itemType) {
+		} else if s.qualityAllowed(quality) && !isRuneOrGem(name) && !isRuneOrGemType(itemType) && !isPotionType(itemType) {
 			qualityMatch = true
 		}
 	}

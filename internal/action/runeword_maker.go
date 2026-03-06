@@ -780,21 +780,21 @@ func hasBaseForRunewordRecipe(items []data.Item, recipe Runeword) (data.Item, bo
 		}
 
 		socketPrefix, ok, reason := runewordSocketPrefix(itm, recipe)
+		unsocketCandidate := false
 		if !ok {
 			if allowUnsocket && itm.HasSocketedItems() && canUnsocketMismatchBase(availableRunes, recipe, reason) {
-				socketPrefixes[itm.UnitID] = 0
-				unsocketCandidates[itm.UnitID] = true
-				validBases = append(validBases, itm)
+				unsocketCandidate = true
+				socketPrefix = 0
+			} else {
+				if itm.HasSocketedItems() {
+					ctx.Logger.Debug("Skipping base - existing sockets block runeword recipe",
+						"runeword", recipe.Name,
+						"base", itm.Name,
+						"reason", reason,
+					)
+				}
 				continue
 			}
-			if itm.HasSocketedItems() || itm.IsRuneword {
-				ctx.Logger.Debug("Skipping base - existing sockets block runeword recipe",
-					"runeword", recipe.Name,
-					"base", itm.Name,
-					"reason", reason,
-				)
-			}
-			continue
 		}
 		if socketPrefix >= len(recipe.Runes) {
 			if itm.HasSocketedItems() {
@@ -844,6 +844,9 @@ func hasBaseForRunewordRecipe(items []data.Item, recipe Runeword) (data.Item, bo
 		}
 
 		socketPrefixes[itm.UnitID] = socketPrefix
+		if unsocketCandidate {
+			unsocketCandidates[itm.UnitID] = true
+		}
 		validBases = append(validBases, itm)
 	}
 

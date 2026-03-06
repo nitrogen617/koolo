@@ -498,7 +498,7 @@ var Runewords = []Runeword{
 	{
 		Name:          item.RunewordInsight,
 		Runes:         []string{"RalRune", "TirRune", "TalRune", "SolRune"},
-		BaseItemTypes: []string{item.TypePolearm, item.TypeAmazonBow, item.TypeBow, item.TypeCrossbow},
+		BaseItemTypes: []string{item.TypePolearm, item.TypeAmazonBow, item.TypeBow, item.TypeCrossbow, item.TypeStaff},
 		Rolls: []RunewordStatRolls{
 			{Min: 12, Max: 17, StatID: stat.Aura, Layer: 120}, // 120
 			{Min: 200, Max: 260, StatID: stat.EnhancedDamageMin},

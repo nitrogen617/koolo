@@ -318,6 +318,7 @@ function updateDashboard(data) {
   const hiddenSupervisorNames = orderedSupervisors.filter((name) =>
     hiddenSupervisors.has(name)
   );
+  const visibleCards = new Map();
 
   for (const key of visibleSupervisors) {
     const value = data.Status[key];
@@ -333,19 +334,17 @@ function updateDashboard(data) {
     if (autoStartCheckbox && data.AutoStart) {
       autoStartCheckbox.checked = !!data.AutoStart[key];
     }
+
+    visibleCards.set(key, card);
   }
 
   visibleSupervisors.forEach((name, index) => {
-    let card = document.getElementById(`card-${name}`);
+    const card = visibleCards.get(name);
     if (!card) {
-      card = createCharacterCard(name);
+      return;
     }
     if (!card.parentNode) {
       container.insertBefore(card, container.children[index] || null);
-      return;
-    }
-
-    if (!card) {
       return;
     }
 
@@ -366,6 +365,40 @@ function updateDashboard(data) {
   renderHiddenSupervisorControls(hiddenSupervisorNames);
   restoreExpandedState();
   ensureCardSorting();
+}
+
+function getCardSupervisorName(card) {
+  return card?.dataset.supervisor || card?.id?.replace("card-", "") || "";
+}
+
+function updateCardSupervisorIdentity(card, newName) {
+  if (!card || !newName) {
+    return;
+  }
+
+  card.id = `card-${newName}`;
+  card.dataset.supervisor = newName;
+  card.classList.remove("renaming-supervisor");
+
+  const supervisorName = card.querySelector(".supervisor-name");
+  if (supervisorName) {
+    supervisorName.textContent = newName;
+  }
+
+  const supervisorNameInput = card.querySelector(".supervisor-name-input");
+  if (supervisorNameInput) {
+    supervisorNameInput.value = newName;
+    supervisorNameInput.setAttribute("aria-label", `Rename supervisor ${newName}`);
+  }
+
+  card.querySelectorAll("[data-character]").forEach((element) => {
+    element.dataset.character = newName;
+  });
+
+  const resetMuleBtn = card.querySelector(".reset-muling-btn");
+  if (resetMuleBtn) {
+    resetMuleBtn.dataset.characterName = newName;
+  }
 }
 
 function createCharacterCard(key) {
@@ -412,8 +445,8 @@ function createCharacterCard(key) {
                     </div>
                   </div>
                 </div>
-                <div class="character-controls">
-                      <button class="btn btn-outline companion-join-btn" onclick="showCompanionJoinPopup('${key}')" style="display:none;">
+                 <div class="character-controls">
+                      <button class="btn btn-outline companion-join-btn" style="display:none;">
                           <i class="bi bi-door-open btn-icon"></i>Join Game
                       </button>
                       <button class="btn btn-outline btn-games">
@@ -425,10 +458,10 @@ function createCharacterCard(key) {
                           <button class="btn btn-outline reset-muling-btn" data-character-name="${key}" title="Reset Muling Progress">
                               <i class="bi bi-arrow-counterclockwise"></i>
                           </button>
-                      <button class="btn btn-outline" onclick="location.href='/armory?character=${key}'" title="Armory">
+                      <button class="btn btn-outline armory-btn" title="Armory">
                           <i class="bi bi-shield-shaded"></i>
                       </button>
-                      <button class="btn btn-outline" onclick="location.href='/supervisorSettings?supervisor=${key}'" title="Settings">
+                      <button class="btn btn-outline settings-btn" title="Settings">
                           <i class="bi bi-gear"></i>
                       </button>
                       <button class="start-pause btn btn-start" data-character="${key}" title="Start">
@@ -440,7 +473,7 @@ function createCharacterCard(key) {
                       <button class="stop btn btn-stop" data-character="${key}" style="display:none;" title="Stop">
                           <i class="bi bi-stop-fill"></i>
                       </button>
-                      <button class="btn btn-outline attach-btn" onclick="showAttachPopup('${key}')" style="display:none;" title="Attach">
+                      <button class="btn btn-outline attach-btn" style="display:none;" title="Attach">
                           <i class="bi bi-link-45deg"></i>
                       </button>
                       <div class="card-actions-menu">
@@ -512,7 +545,7 @@ function createCharacterCard(key) {
                     <div class="scheduler-next"></div>
                 </div>
                 <div class="expanded-controls">
-                    <button class="btn btn-outline" onclick="location.href='/debug?characterName=${key}'" title="Open Debug Page">
+                    <button class="btn btn-outline debug-btn" title="Open Debug Page">
                         <i class="bi bi-bug"></i>
                     </button>
                 </div>
@@ -527,6 +560,7 @@ function createCharacterCard(key) {
 function setupEventListeners(card, key) {
   if (!card) return;
 
+  const getSupervisorName = () => getCardSupervisorName(card);
   const toggleDetailsBtn = card.querySelector(".toggle-details");
   const startPauseBtn = card.querySelector(".start-pause");
   const stopBtn = card.querySelector(".stop");
@@ -542,8 +576,52 @@ function setupEventListeners(card, key) {
   const renameCancelBtn = card.querySelector(".supervisor-rename-cancel");
   const supervisorName = card.querySelector(".supervisor-name");
   const supervisorNameInput = card.querySelector(".supervisor-name-input");
+  const companionJoinBtn = card.querySelector(".companion-join-btn");
+  const armoryBtn = card.querySelector(".armory-btn");
+  const settingsBtn = card.querySelector(".settings-btn");
+  const attachBtn = card.querySelector(".attach-btn");
+  const debugBtn = card.querySelector(".debug-btn");
 
   ensureActionMenuCloseHandler();
+
+  if (companionJoinBtn) {
+    companionJoinBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showCompanionJoinPopup(getSupervisorName());
+    });
+  }
+
+  if (armoryBtn) {
+    armoryBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      location.href = `/armory?character=${encodeURIComponent(getSupervisorName())}`;
+    });
+  }
+
+  if (settingsBtn) {
+    settingsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      location.href = `/supervisorSettings?supervisor=${encodeURIComponent(
+        getSupervisorName()
+      )}`;
+    });
+  }
+
+  if (attachBtn) {
+    attachBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showAttachPopup(getSupervisorName());
+    });
+  }
+
+  if (debugBtn) {
+    debugBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      location.href = `/debug?characterName=${encodeURIComponent(
+        getSupervisorName()
+      )}`;
+    });
+  }
 
   if (actionsMenu && actionsToggleBtn) {
     actionsMenu.addEventListener("click", (e) => {
@@ -564,14 +642,14 @@ function setupEventListeners(card, key) {
       e.stopPropagation();
       if (
         confirm(
-          `Are you sure you want to reset the muling progress for ${key}? This should only be done if you have manually emptied the mules.`
+          `Are you sure you want to reset the muling progress for ${getSupervisorName()}? This should only be done if you have manually emptied the mules.`
         )
       ) {
-        fetch("/reset-muling?characterName=" + key, {
+        fetch("/reset-muling?characterName=" + encodeURIComponent(getSupervisorName()), {
           method: "POST",
         }).then((response) => {
           if (response.ok) {
-            alert("Muling progress for " + key + " has been reset.");
+            alert("Muling progress for " + getSupervisorName() + " has been reset.");
           } else {
             alert("Failed to reset muling progress.");
           }
@@ -598,7 +676,7 @@ function setupEventListeners(card, key) {
       const enabled = autoStartCheckbox.checked;
       fetch(
         `/autostart/toggle?characterName=${encodeURIComponent(
-          key
+          getSupervisorName()
         )}&enabled=${enabled}`,
         {
           method: "POST",
@@ -612,7 +690,7 @@ function setupEventListeners(card, key) {
   if (renameBtn && renameSaveBtn && renameCancelBtn && supervisorName && supervisorNameInput) {
     renameBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      supervisorNameInput.value = key;
+      supervisorNameInput.value = getSupervisorName();
       card.classList.add("renaming-supervisor");
       supervisorNameInput.focus();
       supervisorNameInput.select();
@@ -620,22 +698,22 @@ function setupEventListeners(card, key) {
 
     renameCancelBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      supervisorNameInput.value = key;
+      supervisorNameInput.value = getSupervisorName();
       card.classList.remove("renaming-supervisor");
     });
 
     renameSaveBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await renameSupervisor(key, supervisorNameInput.value.trim(), card);
+      await renameSupervisor(getSupervisorName(), supervisorNameInput.value.trim(), card);
     });
 
     supervisorNameInput.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        await renameSupervisor(key, supervisorNameInput.value.trim(), card);
+        await renameSupervisor(getSupervisorName(), supervisorNameInput.value.trim(), card);
       } else if (e.key === "Escape") {
         e.preventDefault();
-        supervisorNameInput.value = key;
+        supervisorNameInput.value = getSupervisorName();
         card.classList.remove("renaming-supervisor");
       }
     });
@@ -648,14 +726,14 @@ function setupEventListeners(card, key) {
         actionsMenu.classList.remove("open");
         card.classList.remove("actions-open");
       }
-      await copySupervisor(key);
+      await copySupervisor(getSupervisorName());
     });
   }
 
   if (hideBtn) {
     hideBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      hideSupervisor(key);
+      hideSupervisor(getSupervisorName());
       if (actionsMenu) {
         actionsMenu.classList.remove("open");
         card.classList.remove("actions-open");
@@ -670,7 +748,7 @@ function setupEventListeners(card, key) {
         actionsMenu.classList.remove("open");
         card.classList.remove("actions-open");
       }
-      await deleteSupervisor(key);
+      await deleteSupervisor(getSupervisorName());
     });
   }
 
@@ -690,7 +768,7 @@ function setupEventListeners(card, key) {
         // Paused
         action = "togglePause";
       }
-      fetch(`/${action}?characterName=${key}`)
+      fetch(`/${action}?characterName=${encodeURIComponent(getSupervisorName())}`)
         .then((response) => response.json())
         .then((data) => {
           updateDashboard(data);
@@ -700,7 +778,9 @@ function setupEventListeners(card, key) {
   }
   if (stopBtn) {
     stopBtn.addEventListener("click", function () {
-      fetch(`/stop?characterName=${key}`).then(() => fetchInitialData());
+      fetch(`/stop?characterName=${encodeURIComponent(getSupervisorName())}`).then(() =>
+        fetchInitialData()
+      );
     });
   }
 
@@ -711,7 +791,11 @@ function setupEventListeners(card, key) {
       if (this.className.includes("btn-pause")) {
         return;
       }
-      fetch(`/start?characterName=${key}&manualMode=true`)
+      fetch(
+        `/start?characterName=${encodeURIComponent(
+          getSupervisorName()
+        )}&manualMode=true`
+      )
         .then((response) => response.json())
         .then((data) => updateDashboard(data))
         .catch((error) => console.error("Error:", error));
@@ -1719,7 +1803,9 @@ async function renameSupervisor(oldName, newName, card) {
     }
 
     const result = await response.json();
-    replaceSupervisorNameInClientState(oldName, result.supervisor || newName);
+    const finalName = result.supervisor || newName;
+    replaceSupervisorNameInClientState(oldName, finalName);
+    updateCardSupervisorIdentity(card, finalName);
     await fetchInitialData();
   } catch (error) {
     console.error("Error renaming supervisor:", error);

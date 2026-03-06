@@ -16,10 +16,10 @@ const (
 
 var (
 	skillWeights = map[stat.ID]float64{
-		stat.AllSkills:      200.0,
-		stat.AddClassSkills: 175.0,
-		stat.AddSkillTab:    125.0,
-		stat.SingleSkill:    40.0,
+		stat.AllSkills:      65.0,
+		stat.AddClassSkills: 50.0,
+		stat.AddSkillTab:    35.0,
+		stat.SingleSkill:    10.0,
 	}
 
 	resistWeightsMain = map[stat.ID]float64{

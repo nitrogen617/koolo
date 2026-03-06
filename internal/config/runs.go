@@ -166,6 +166,7 @@ var SequencerQuests = []LevelingRunInfo{
 
 var SequencerRuns = []Run{
 	AmuletRun,
+	AncientTunnelsRun,
 	AncientsRun,
 	AndarielRun,
 	AnyaRun,

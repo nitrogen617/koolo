@@ -214,6 +214,7 @@ func EmptyCube() error {
 
 func ensureCubeIsEmpty() error {
 	ctx := context.Get()
+	ctx.RefreshGameData()
 	if !ctx.Data.OpenMenus.Cube {
 		return errors.New("horadric Cube window not detected")
 	}
@@ -232,16 +233,19 @@ func ensureCubeIsEmpty() error {
 		ctx.HID.ClickWithModifier(game.LeftButton, screenPos.X, screenPos.Y, game.CtrlKey)
 		utils.Sleep(700)
 
-		itm, _ = ctx.Data.Inventory.FindByID(itm.UnitID)
-		if itm.Location.LocationType == item.LocationCube {
+		ctx.RefreshGameData()
+		itm, found := ctx.Data.Inventory.FindByID(itm.UnitID)
+		if found && itm.Location.LocationType == item.LocationCube {
 			return fmt.Errorf("item %s could not be removed from the cube", itm.Name)
 		}
 	}
 
 	ctx.HID.PressKey(win.VK_ESCAPE)
 	utils.Sleep(300)
+	ctx.RefreshGameData()
 
 	stashInventory(true, true)
+	ctx.RefreshGameData()
 
 	return ensureCubeIsOpen()
 }
@@ -250,10 +254,14 @@ func ensureCubeIsOpen() error {
 	ctx := context.Get()
 	ctx.Logger.Debug("Opening Horadric Cube...")
 
+	ctx.RefreshGameData()
 	if ctx.Data.OpenMenus.Cube {
 		ctx.Logger.Debug("Horadric Cube window already open")
 		return nil
 	}
+
+	ClearMessages()
+	utils.Sleep(150)
 
 	cube, found := ctx.Data.Inventory.Find("HoradricCube", item.LocationInventory, item.LocationStash)
 	if !found {
@@ -262,8 +270,6 @@ func ensureCubeIsOpen() error {
 
 	// If cube is in stash, switch to the correct tab
 	if cube.Location.LocationType == item.LocationStash || cube.Location.LocationType == item.LocationSharedStash {
-		ctx := context.Get()
-
 		// Ensure stash is open
 		if !ctx.Data.OpenMenus.Stash {
 			bank, _ := ctx.Data.Objects.FindOne(object.Bank)
@@ -280,13 +286,24 @@ func ensureCubeIsOpen() error {
 		} else {
 			SwitchStashTab(1)
 		}
+
+		ctx.RefreshGameData()
+		if updatedCube, ok := ctx.Data.Inventory.FindByID(cube.UnitID); ok {
+			cube = updatedCube
+		}
+	} else {
+		ctx.RefreshGameData()
+		if updatedCube, ok := ctx.Data.Inventory.FindByID(cube.UnitID); ok {
+			cube = updatedCube
+		}
 	}
 
 	screenPos := ui.GetScreenCoordsForItem(cube)
 
 	utils.Sleep(300)
 	ctx.HID.Click(game.RightButton, screenPos.X, screenPos.Y)
-	utils.Sleep(500)
+	utils.PingSleep(utils.Critical, 400)
+	ctx.RefreshGameData()
 
 	if ctx.Data.OpenMenus.Cube {
 		ctx.Logger.Debug("Horadric Cube window detected")

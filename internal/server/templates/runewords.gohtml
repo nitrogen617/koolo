@@ -342,6 +342,13 @@
                            {{ if .Config.Game.RunewordMaker.AutoTierByDifficulty }}checked{{ end }}/>
                     <span style="white-space: nowrap; color: #f5f7ff;" title="Auto-select base tier based on difficulty: Normal=Normal, Nightmare=Exceptional, Hell=Elite">Auto Tier by Difficulty</span>
                 </label>
+                <label style="display: flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 0.85rem;">
+                    <input type="checkbox"
+                           name="rwRerollUntilTarget"
+                           form="runeword-settings-form"
+                           {{ if .Config.Game.RunewordMaker.RerollUntilTarget }}checked{{ end }}/>
+                    <span style="white-space: nowrap; color: #f5f7ff;" title="When enabled, reroll the same runeword continuously in one tick until target stats are met or materials are exhausted">Reroll Until Target (One Tick)</span>
+                </label>
             </div>
         </div>
     </div>

@@ -526,6 +526,7 @@ type CharacterCfg struct {
 			AutoUpgrade          bool     `yaml:"autoUpgrade"`          // Upgrade when better tier base found
 			OnlyIfWearable       bool     `yaml:"onlyIfWearable"`       // Only make if character meets str/dex requirements
 			AutoTierByDifficulty bool     `yaml:"autoTierByDifficulty"` // Auto-select tier based on difficulty
+			RerollUntilTarget    bool     `yaml:"rerollUntilTarget"`
 		} `yaml:"runewordMaker"`
 		LevelingSequence struct {
 			SequenceFile string `yaml:"sequenceFile"`

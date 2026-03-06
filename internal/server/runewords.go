@@ -357,15 +357,15 @@ func (s *HttpServer) runewordSettings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err != nil {
 			s.templates.ExecuteTemplate(w, "runewords.gohtml", CharacterSettings{
-				Version:            config.Version,
-				Supervisor:         characterName,
-				Config:             cfg,
-				Saved:              false,
-				ErrorMessage:       err.Error(),
-				RunewordRecipeList: availableRunewordRecipesForCharacter(cfg),
+				Version:                 config.Version,
+				Supervisor:              characterName,
+				Config:                  cfg,
+				Saved:                   false,
+				ErrorMessage:            err.Error(),
+				RunewordRecipeList:      availableRunewordRecipesForCharacter(cfg),
 				RunewordFavoriteRecipes: config.Koolo.RunewordFavoriteRecipes,
-				RunewordRuneNames:  buildRunewordRuneNames(),
-				RunewordRerollable: buildRunewordRerollable(),
+				RunewordRuneNames:       buildRunewordRuneNames(),
+				RunewordRerollable:      buildRunewordRerollable(),
 			})
 			return
 		}
@@ -376,6 +376,7 @@ func (s *HttpServer) runewordSettings(w http.ResponseWriter, r *http.Request) {
 		cfg.Game.RunewordMaker.AutoUpgrade = r.Form.Has("rwAutoUpgrade")
 		cfg.Game.RunewordMaker.OnlyIfWearable = r.Form.Has("rwOnlyIfWearable")
 		cfg.Game.RunewordMaker.AutoTierByDifficulty = r.Form.Has("rwAutoTierByDifficulty")
+		cfg.Game.RunewordMaker.RerollUntilTarget = r.Form.Has("rwRerollUntilTarget")
 
 		if _, ok := r.Form["runewordMakerEnabled"]; ok {
 			cfg.Game.RunewordMaker.Enabled = r.Form.Has("runewordMakerEnabled")
@@ -453,17 +454,17 @@ func (s *HttpServer) runewordSettings(w http.ResponseWriter, r *http.Request) {
 
 				var rules []config.RunewordRerollRule
 				if err := json.Unmarshal([]byte(rawRules), &rules); err != nil {
-				s.templates.ExecuteTemplate(w, "runewords.gohtml", CharacterSettings{
-					Version:                 config.Version,
-					Supervisor:              characterName,
-					Config:                  cfg,
-					Saved:                   false,
-					ErrorMessage:            fmt.Sprintf("failed to parse reroll rules: %v", err),
-					RunewordRecipeList:      availableRunewordRecipesForCharacter(cfg),
-					RunewordFavoriteRecipes: config.Koolo.RunewordFavoriteRecipes,
-					RunewordRuneNames:       buildRunewordRuneNames(),
-					RunewordRerollable:      buildRunewordRerollable(),
-				})
+					s.templates.ExecuteTemplate(w, "runewords.gohtml", CharacterSettings{
+						Version:                 config.Version,
+						Supervisor:              characterName,
+						Config:                  cfg,
+						Saved:                   false,
+						ErrorMessage:            fmt.Sprintf("failed to parse reroll rules: %v", err),
+						RunewordRecipeList:      availableRunewordRecipesForCharacter(cfg),
+						RunewordFavoriteRecipes: config.Koolo.RunewordFavoriteRecipes,
+						RunewordRuneNames:       buildRunewordRuneNames(),
+						RunewordRerollable:      buildRunewordRerollable(),
+					})
 					return
 				}
 

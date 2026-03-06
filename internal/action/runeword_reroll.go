@@ -768,67 +768,96 @@ func RerollRunewords() {
 		}
 
 		for _, itm := range candidates {
-			applicableRuleFound, meetsAnyRule, historyRule := evaluateRunewordRules(ctx, itm, rules, name)
+			current := itm
 
-			// If no rule applied to this base, skip it (no reroll decision).
-			if !applicableRuleFound {
-				continue
-			}
+			for {
+				applicableRuleFound, meetsAnyRule, historyRule := evaluateRunewordRules(ctx, current, rules, name)
 
-			// If it meets at least one applicable rule, do not reroll.
-			if meetsAnyRule {
-				continue
-			}
+				// If no rule applied to this base, skip it (no reroll decision).
+				if !applicableRuleFound {
+					break
+				}
 
-			// At this point, the item failed all rules that apply to its base;
-			// attempt to unsocket once, then stop for this tick.
-			var targetSummary string
-			var actualSummary string
-			if historyRule != nil {
-				targetSummary, actualSummary = buildRerollHistorySummary(itm, *historyRule)
-			} else {
-				targetSummary = "Unknown"
-				actualSummary = "n/a"
-			}
+				// If it meets at least one applicable rule, do not reroll.
+				if meetsAnyRule {
+					break
+				}
 
-			excludeIDs := buildExcludedRunewordUnitIDs(itm, recipe)
-			success, failureReason := unsocketRuneword(itm)
-			if success {
-				remade, found := findRerolledRunewordItem(itm, recipe, excludeIDs)
-				if !found {
-					success = false
-					failureReason = "Remade item not found"
+				// In continuous mode, keep trying this item until target is met
+				// or materials are exhausted.
+				if !hasRunesForReroll(ctx, recipe) {
+					ctx.Logger.Debug("Runeword reroll: stopping reroll loop due to insufficient runes",
+						"runeword", name,
+					)
+					return
+				}
+
+				var targetSummary string
+				var actualSummary string
+				if historyRule != nil {
+					targetSummary, actualSummary = buildRerollHistorySummary(current, *historyRule)
 				} else {
-					_, meetsAnyRuleAfter, _ := evaluateRunewordRules(ctx, remade, rules, name)
-					if meetsAnyRuleAfter {
-						success = true
-						failureReason = ""
-					} else {
-						success = false
-						failureReason = "Target not met"
-					}
+					targetSummary = "Unknown"
+					actualSummary = "n/a"
+				}
 
-					if historyRule != nil {
-						targetSummary, actualSummary = buildRerollHistorySummary(remade, *historyRule)
+				excludeIDs := buildExcludedRunewordUnitIDs(current, recipe)
+				success, failureReason := unsocketRuneword(current)
+
+				var remade data.Item
+				remadeFound := false
+				if success {
+					remade, remadeFound = findRerolledRunewordItem(current, recipe, excludeIDs)
+					if !remadeFound {
+						success = false
+						failureReason = "Remade item not found"
+					} else {
+						_, meetsAnyRuleAfter, _ := evaluateRunewordRules(ctx, remade, rules, name)
+						if meetsAnyRuleAfter {
+							success = true
+							failureReason = ""
+						} else {
+							success = false
+							failureReason = "Target not met"
+						}
+
+						if historyRule != nil {
+							targetSummary, actualSummary = buildRerollHistorySummary(remade, *historyRule)
+						}
 					}
 				}
+
+				if success {
+					ctx.Logger.Info("Runeword reroll: target satisfied",
+						"runeword", string(current.RunewordName),
+						"targetStats", targetSummary,
+						"actualStats", actualSummary,
+					)
+				}
+				event.Send(event.RunewordReroll(
+					event.Text(ctx.Name, "Runeword reroll"),
+					string(current.RunewordName),
+					targetSummary,
+					actualSummary,
+					success,
+					failureReason,
+				))
+
+				if success {
+					return
+				}
+
+				if !ctx.CharacterCfg.Game.RunewordMaker.RerollUntilTarget {
+					return
+				}
+
+				if failureReason != "Target not met" || !remadeFound {
+					return
+				}
+
+				// Keep rerolling the same item in this tick.
+				current = remade
 			}
-			if success {
-				ctx.Logger.Info("Runeword reroll: target satisfied",
-					"runeword", string(itm.RunewordName),
-					"targetStats", targetSummary,
-					"actualStats", actualSummary,
-				)
-			}
-			event.Send(event.RunewordReroll(
-				event.Text(ctx.Name, "Runeword reroll"),
-				string(itm.RunewordName),
-				targetSummary,
-				actualSummary,
-				success,
-				failureReason,
-			))
-			return
 		}
 	}
 }

@@ -73,20 +73,20 @@ var (
 	}
 
 	uniqueItemScores = map[item.Name]float64{
-		item.Name(item.ThudergodsVigor):    3000.0,
+		//item.Name(item.ThudergodsVigor):    3000.0,
 		item.Name(item.SkinoftheVipermagi): 2000.0,
 		item.Name(item.RunewordSmoke):      1000.0,
-		item.Name(item.ArachnidMesh):       3000.0,
-		item.Name(item.NosferatusCoil):     3000.0,
-		item.Name(item.VerdugosHeartyCord): 3000.0,
-		item.Name(item.Bladebuckle):        3000.0,
-		item.Name(item.StringofEars):       3000.0,
-		item.Name(item.Razortail):          3000.0,
-		item.Name(item.Gloomstrap):         3000.0,
-		item.Name(item.Snowclash):          3000.0,
-		item.Name(item.Nightsmoke):         2000.0,
-		item.Name(item.Goldwrap):           2000.0,
-		item.Name(item.Snakecord):          1000.0,
+		//item.Name(item.ArachnidMesh):       3000.0,
+		//item.Name(item.NosferatusCoil):     3000.0,
+		//item.Name(item.VerdugosHeartyCord): 3000.0,
+		//item.Name(item.Bladebuckle):        3000.0,
+		//item.Name(item.StringofEars):       3000.0,
+		//item.Name(item.Razortail):          3000.0,
+		//item.Name(item.Gloomstrap):         3000.0,
+		//item.Name(item.Snowclash):          3000.0,
+		//item.Name(item.Nightsmoke):         2000.0,
+		//item.Name(item.Goldwrap):           2000.0,
+		//item.Name(item.Snakecord):          1000.0,
 		item.Name(item.LenymsCord):         0.0,
 		item.Name(item.RunewordInsight):    0.0,
 	}
@@ -328,33 +328,18 @@ func calculateGeneralScore(itm data.Item) float64 {
 
 // Belt-specific scoring so we don't lose belt slots
 func calculateBeltScore(itm data.Item) float64 {
-	// Score belts based on their base type name to prioritize slots above all else.
-	// The scores are set in high tiers to ensure no combination of other stats can beat a higher slot belt.
-	switch itm.Name {
-	case "PlatedBelt": // 16 slots
-		return 3000.0
-	case "Belt", "HeavyBelt": // 12 slots
-		return 2000.0
-	case "LightBelt": // 8 slots
+	// Score belts by slot capacity:
+	// 8 slots -> 1000, 12 slots -> 2000, 16 slots -> 3000.
+	switch getBeltSize(itm) {
+	case 2: // 8 slots
 		return 1000.0
-	case "Sash": // 4 slots
+	case 3: // 12 slots
+		return 2000.0
+	case 4: // 16 slots
+		return 3000.0
+	default:
 		return 0.0
 	}
-
-	// Fallback for exceptional/elite belts which all have 16 slots
-	if s, found := itm.FindStat(54, 0); found {
-		if s.Value >= 16 {
-			return 3000.0
-		}
-		if s.Value >= 12 {
-			return 2000.0
-		}
-		if s.Value >= 8 {
-			return 1000.0
-		}
-	}
-
-	return 0.0
 }
 
 func getBeltSize(itm data.Item) int {
